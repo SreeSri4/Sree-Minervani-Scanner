@@ -327,8 +327,6 @@ export default async function handler(req, res) {
   });
 }
 
-function r2(n) { return n != null ? Math.round(Number(n) * 100) / 100 : null; }
-
 export const config = {
   api:         { responseLimit: "10mb" },
   maxDuration: 60,
