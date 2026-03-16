@@ -391,7 +391,7 @@ function StockCard({ stock: s, exchange, delay }) {
       <div className={styles.scoreRow}>
         <span className={styles.scoreLbl}>SEPA</span>
         <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{ width:`${(s.sepa_score/10)*100}%`, background: sc }} /></div>
-        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/9</span>
+        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/10</span>
       </div>
 
       {/* Criteria 2-col */}
