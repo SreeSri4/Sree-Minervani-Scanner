@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Head from 'next/head'
 import styles from '../styles/Home.module.css'
 
@@ -11,10 +11,10 @@ const PRESETS = {
 }
 
 const CRIT_LABELS = {
-  C1:'Price > MA200 & MA150',  C2:'MA150 > MA200',
-  C3:'MA200 trending up',      C4:'MA50 > MA150 & MA200',
-  C5:'≥25% above 52W low',     C6:'Within 25% of 52W high',
-  C7:'RS ≥ 70 vs Nifty 50',    C8:'VCP / tight pattern',
+  C1:'Price > MA200 & MA150', C2:'MA150 > MA200',
+  C3:'MA200 trending up',     C4:'MA50 > MA150 & MA200',
+  C5:'≥25% above 52W low',    C6:'Within 25% of 52W high',
+  C7:'RS ≥ 70 vs Nifty 50',   C8:'VCP / tight pattern',
 }
 
 const SEPA_CRITERIA = [
@@ -34,23 +34,47 @@ function inr(n) {
 }
 
 export default function Home() {
-  const [tickers, setTickers]       = useState([])
-  const [exchange, setExchange]     = useState('NS')
-  const [input, setInput]           = useState('')
-  const [loading, setLoading]       = useState(false)
-  const [stocks, setStocks]         = useState(null)
-  const [error, setError]           = useState('')
+  const [tickers, setTickers]         = useState([])
+  const [exchange, setExchange]       = useState('NS')
+  const [input, setInput]             = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [stocks, setStocks]           = useState(null)
+  const [error, setError]             = useState('')
   const [fetchErrors, setFetchErrors] = useState([])
+  const [theme, setTheme]             = useState('dark')
   const inputRef = useRef(null)
 
+  // Apply theme class to <html>
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  // ── Ticker management ─────────────────────────────────────────
+  function parseTickers(raw) {
+    return raw
+      .split(/[\s,;\n\t]+/)
+      .map(t => t.trim().toUpperCase().replace(/[^A-Z0-9&]/g, ''))
+      .filter(Boolean)
+  }
+
   function addTicker(val) {
-    const raw = (val || input).trim().toUpperCase().replace(/[^A-Z0-9&]/g, '')
-    if (!raw) return
-    if (tickers.includes(raw)) { setInput(''); return }
-    if (tickers.length >= 15) { alert('Max 15 stocks at a time'); return }
-    setTickers(prev => [...prev, raw])
+    const tokens = parseTickers(val || input)
+    if (!tokens.length) return
+    setTickers(prev => {
+      const merged = [...prev]
+      for (const t of tokens) {
+        if (!merged.includes(t) && merged.length < 15) merged.push(t)
+      }
+      return merged
+    })
     setInput('')
     inputRef.current?.focus()
+  }
+
+  function handlePaste(e) {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text')
+    addTicker(text)
   }
 
   function removeTicker(t) { setTickers(prev => prev.filter(x => x !== t)) }
@@ -59,13 +83,10 @@ export default function Home() {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTicker() }
   }
 
+  // ── Analyze ───────────────────────────────────────────────────
   async function analyze() {
     if (!tickers.length) return
-    setLoading(true)
-    setError('')
-    setStocks(null)
-    setFetchErrors([])
-
+    setLoading(true); setError(''); setStocks(null); setFetchErrors([])
     try {
       const resp = await fetch('/api/analyze', {
         method: 'POST',
@@ -97,147 +118,179 @@ export default function Home() {
         <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇮🇳</text></svg>" />
       </Head>
 
-      <main className={styles.main}>
-        {/* Header */}
-        <div className={styles.header}>
-          <div className={styles.logo}>🇮🇳</div>
-          <div className={styles.titleBlock}>
-            <h1>Minervini India SEPA Screener <span className={styles.badge}>NSE · BSE</span></h1>
-            <p>Direct Yahoo Finance API · MA Calculated from Real OHLCV Data · ₹ INR</p>
-          </div>
-        </div>
-
-        {/* Input card */}
-        <div className={styles.card}>
-          <div className={styles.sectionLabel}>Exchange</div>
-          <div className={styles.toggleRow}>
-            <button className={`${styles.exchBtn} ${exchange==='NS'?styles.active:''}`} onClick={() => setExchange('NS')}>NSE (.NS)</button>
-            <button className={`${styles.exchBtn} ${exchange==='BO'?styles.active:''}`} onClick={() => setExchange('BO')}>BSE (.BO)</button>
-            <span className={styles.exchNote}>Suffix auto-appended for Yahoo Finance API</span>
-          </div>
-
-          <div className={styles.sectionLabel}>Stock Symbols</div>
-          <div className={styles.inputRow}>
-            <input
-              ref={inputRef}
-              className={styles.tickerInput}
-              type="text"
-              placeholder="e.g. RELIANCE, TCS, INFY"
-              value={input}
-              onChange={e => setInput(e.target.value.toUpperCase())}
-              onKeyDown={handleKey}
-              maxLength={20}
-            />
-            <button className={styles.addBtn} onClick={() => addTicker()}>+ Add</button>
-          </div>
-
-          {tickers.length > 0 && (
-            <div className={styles.chips}>
-              {tickers.map(t => (
-                <div key={t} className={styles.chip}>
-                  {t}<span className={styles.chipSuffix}>.{exchange}</span>
-                  <button className={styles.chipRm} onClick={() => removeTicker(t)}>×</button>
-                </div>
-              ))}
+      <div className={styles.appShell}>
+        {/* ── Top Bar ─────────────────────────────────── */}
+        <header className={styles.topBar}>
+          <div className={styles.topLeft}>
+            <div className={styles.logo}>🇮🇳</div>
+            <div className={styles.titleBlock}>
+              <h1>Minervini India SEPA Screener <span className={styles.badge}>NSE · BSE</span></h1>
+              <p>Direct Yahoo Finance API · MAs from real OHLCV · ₹ INR</p>
             </div>
-          )}
-
-          <div className={styles.presets}>
-            <span className={styles.presetLabel}>Quick sets:</span>
-            {[['nifty','Nifty Top 15'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
-              <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
-            ))}
           </div>
-
-          <button className={styles.analyzeBtn} onClick={analyze} disabled={loading || tickers.length === 0}>
-            {loading ? (
-              <><span className={styles.btnSpinner} /> Fetching real-time data from Yahoo Finance...</>
-            ) : (
-              <><SearchIcon /> Analyze with Minervini SEPA Criteria</>
-            )}
+          <button
+            className={styles.themeBtn}
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title="Toggle theme"
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
-        </div>
+        </header>
 
-        {/* Criteria card */}
-        <div className={styles.card}>
-          <div className={styles.sectionLabel}>8 Minervini SEPA Filters — scored from real Yahoo Finance data</div>
-          <div className={styles.criteriaGrid}>
-            {SEPA_CRITERIA.map((c, i) => (
-              <div key={i} className={styles.critItem}>
-                <div className={styles.critDot} /><span>{c}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Loading */}
-        {loading && (
-          <div className={styles.card}>
-            <div className={styles.loadingBox}>
-              <div className={styles.spinner} />
-              <div className={styles.loadingText}>
-                Fetching: {tickers.map(t=>`${t}.${exchange}`).join(', ')}
-              </div>
-              <div className={styles.loadingSub}>
-                Pulling 1-year OHLCV history · Calculating MA50 / MA150 / MA200<br />
-                Scoring all 8 SEPA criteria · Takes 5–15 seconds
+        <div className={styles.bodyWrap}>
+          {/* ── LEFT PANEL: Controls ─────────────────── */}
+          <aside className={styles.sidebar}>
+            {/* Exchange */}
+            <div className={styles.sideSection}>
+              <div className={styles.sectionLabel}>Exchange</div>
+              <div className={styles.toggleRow}>
+                <button className={`${styles.exchBtn} ${exchange==='NS'?styles.active:''}`} onClick={() => setExchange('NS')}>NSE (.NS)</button>
+                <button className={`${styles.exchBtn} ${exchange==='BO'?styles.active:''}`} onClick={() => setExchange('BO')}>BSE (.BO)</button>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Error */}
-        {error && (
-          <div className={styles.errBox}>
-            <div className={styles.errIcon}>⚠</div>
-            <div className={styles.errTitle}>Analysis Failed</div>
-            <div className={styles.errMsg}>{error}</div>
-            <div className={styles.errHint}>Check the ticker symbol or try again</div>
-          </div>
-        )}
-
-        {/* Partial fetch errors */}
-        {fetchErrors.length > 0 && (
-          <div className={styles.warnBox}>
-            <strong>⚠ Could not fetch data for:</strong>{' '}
-            {fetchErrors.map(e => `${e.ticker} (${e.error})`).join(' · ')}
-          </div>
-        )}
-
-        {/* Results */}
-        {stocks && !loading && (
-          <>
-            <div className={styles.infoBar}>
-              <LiveIcon />
-              Real-time data from Yahoo Finance API · {exchange==='NS'?'NSE':'BSE'} · MAs calculated from 1-year OHLCV history · Prices in ₹
+            {/* Input */}
+            <div className={styles.sideSection}>
+              <div className={styles.sectionLabel}>Stock Symbols</div>
+              <div className={styles.inputHint}>Type, paste (comma-separated), or use presets</div>
+              <textarea
+                ref={inputRef}
+                className={styles.tickerTextarea}
+                placeholder={'RELIANCE, TCS, INFY\nor paste a list...'}
+                value={input}
+                onChange={e => setInput(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); addTicker() } }}
+                onPaste={handlePaste}
+                rows={3}
+              />
+              <button className={styles.addBtn} onClick={() => addTicker()}>
+                + Add to List
+              </button>
             </div>
 
-            <div className={styles.summaryBar}>
-              <div className={`${styles.sumPill} ${styles.total}`}><span className={styles.val}>{stocks.length}</span>&nbsp;Analyzed</div>
-              <div className={`${styles.sumPill} ${styles.buyPill}`}><span className={styles.val}>{buy.length}</span>&nbsp;Buy Ready</div>
-              <div className={`${styles.sumPill} ${styles.watchPill}`}><span className={styles.val}>{watch.length}</span>&nbsp;Watch</div>
-              <div className={`${styles.sumPill} ${styles.avoidPill}`}><span className={styles.val}>{avoid.length}</span>&nbsp;Avoid</div>
+            {/* Chips */}
+            {tickers.length > 0 && (
+              <div className={styles.sideSection}>
+                <div className={styles.sectionLabel}>
+                  Selected ({tickers.length}/15)
+                  <button className={styles.clearAll} onClick={() => setTickers([])}>clear all</button>
+                </div>
+                <div className={styles.chips}>
+                  {tickers.map(t => (
+                    <div key={t} className={styles.chip}>
+                      {t}<span className={styles.chipSuffix}>.{exchange}</span>
+                      <button className={styles.chipRm} onClick={() => removeTicker(t)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Presets */}
+            <div className={styles.sideSection}>
+              <div className={styles.sectionLabel}>Quick Presets</div>
+              <div className={styles.presets}>
+                {[['nifty','Nifty Top 15'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
+                  <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
+                ))}
+              </div>
             </div>
 
-            {sorted.map((s, i) => (
-              <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 55} />
-            ))}
-          </>
-        )}
+            {/* Analyze */}
+            <div className={styles.sideSection}>
+              <button className={styles.analyzeBtn} onClick={analyze} disabled={loading || tickers.length === 0}>
+                {loading
+                  ? <><span className={styles.btnSpinner} /> Fetching data...</>
+                  : <><SearchIcon /> Analyze {tickers.length > 0 ? `${tickers.length} Stock${tickers.length>1?'s':''}` : 'Stocks'}</>
+                }
+              </button>
+            </div>
 
-        {!stocks && !loading && !error && (
-          <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📊</div>
-            <div className={styles.emptyText}>Add stocks above and hit Analyze</div>
-            <div className={styles.emptySub}>Prices & MAs fetched directly from Yahoo Finance API · All in ₹</div>
-          </div>
-        )}
+            {/* Criteria reference */}
+            <div className={styles.sideSection}>
+              <div className={styles.sectionLabel}>SEPA Filters</div>
+              <div className={styles.criteriaList}>
+                {SEPA_CRITERIA.map((c, i) => (
+                  <div key={i} className={styles.critItem}>
+                    <div className={styles.critDot} />
+                    <span>{c}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-        <div className={styles.disclaimer}>
-          ⚠ Data fetched directly from Yahoo Finance API · MAs calculated from real OHLCV history<br />
-          For educational purposes only · Not SEBI-registered advice · Verify with your broker before trading
+            <div className={styles.sideDisclaimer}>
+              ⚠ Educational only · Not SEBI advice<br />Verify before trading
+            </div>
+          </aside>
+
+          {/* ── RIGHT PANEL: Results ─────────────────── */}
+          <main className={styles.resultsPanel}>
+            {/* Loading */}
+            {loading && (
+              <div className={styles.loadingBox}>
+                <div className={styles.spinner} />
+                <div className={styles.loadingText}>
+                  Fetching: {tickers.map(t=>`${t}.${exchange}`).join(', ')}
+                </div>
+                <div className={styles.loadingSub}>
+                  Pulling 1-year OHLCV · Calculating MAs · Scoring SEPA criteria
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className={styles.errBox}>
+                <div className={styles.errIcon}>⚠</div>
+                <div className={styles.errTitle}>Analysis Failed</div>
+                <div className={styles.errMsg}>{error}</div>
+                <div className={styles.errHint}>Check ticker symbol or try again</div>
+              </div>
+            )}
+
+            {/* Partial errors */}
+            {fetchErrors.length > 0 && (
+              <div className={styles.warnBox}>
+                ⚠ Could not fetch: {fetchErrors.map(e=>`${e.ticker}`).join(', ')}
+              </div>
+            )}
+
+            {/* Results */}
+            {stocks && !loading && (
+              <>
+                <div className={styles.resultsHeader}>
+                  <div className={styles.summaryBar}>
+                    <div className={`${styles.sumPill} ${styles.total}`}><span className={styles.val}>{stocks.length}</span> Analyzed</div>
+                    <div className={`${styles.sumPill} ${styles.buyPill}`}><span className={styles.val}>{buy.length}</span> Buy Ready</div>
+                    <div className={`${styles.sumPill} ${styles.watchPill}`}><span className={styles.val}>{watch.length}</span> Watch</div>
+                    <div className={`${styles.sumPill} ${styles.avoidPill}`}><span className={styles.val}>{avoid.length}</span> Avoid</div>
+                  </div>
+                  <div className={styles.infoBar}>
+                    <LiveDot /> Live · Yahoo Finance API · {exchange==='NS'?'NSE':'BSE'} · MAs from 1yr OHLCV
+                  </div>
+                </div>
+
+                <div className={styles.cardsGrid}>
+                  {sorted.map((s, i) => (
+                    <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 40} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Empty state */}
+            {!stocks && !loading && !error && (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>📊</div>
+                <div className={styles.emptyText}>Add stocks and hit Analyze</div>
+                <div className={styles.emptySub}>Prices & MAs fetched directly from Yahoo Finance · All in ₹</div>
+              </div>
+            )}
+          </main>
         </div>
-      </main>
+      </div>
     </>
   )
 }
@@ -255,9 +308,9 @@ function StockCard({ stock: s, exchange, delay }) {
 
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{ animationDelay:`${delay}ms` }}>
-      {/* Top */}
+      {/* Card header */}
       <div className={styles.cardTop}>
-        <div>
+        <div className={styles.cardTopLeft}>
           <div className={styles.tSym}>
             {s.ticker}
             <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
@@ -269,52 +322,77 @@ function StockCard({ stock: s, exchange, delay }) {
             {s.sector && <span className={styles.tSector}> · {s.sector}</span>}
           </div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">
-            ↗ {s.yf_symbol} on Yahoo Finance
+            ↗ {s.yf_symbol}
           </a>
         </div>
-        <div className={styles.rightCol}>
+        <div className={styles.cardTopRight}>
           <div className={`${styles.vtag} ${styles[bc]}`}>{btx}</div>
-          <div className={styles.dataSource}>{s.data_source}</div>
-          {s.data_points && <div className={styles.dataPoints}>{s.data_points} days of data</div>}
+          <div className={styles.sepaScoreBig} style={{ color: sc }}>{s.sepa_score}<span>/8</span></div>
         </div>
       </div>
 
-      {/* Prices */}
-      <div className={styles.prow}>
-        {[
-          { label:'CMP',         val: inr(s.price),     cls:'' },
-          { label:'Change',      val: `${chg>=0?'+':''}${chg.toFixed(2)}%`, cls: chg>=0?'pos':'neg' },
-          { label:'52W High',    val: inr(s.high_52w),  cls:'' },
-          { label:'52W Low',     val: inr(s.low_52w),   cls:'' },
-          { label:'vs 52W Low',  val: pfl ? `+${pfl}%` : '—', cls:'pos' },
-          { label:'vs 52W High', val: pfh ? `${pfh}%`  : '—', cls: pfh && parseFloat(pfh)>=-25 ? 'pos' : 'neg' },
-          { label:'MA 50',       val: inr(s.ma50),      cls:'' },
-          { label:'MA 150',      val: inr(s.ma150),     cls:'' },
-          { label:'MA 200',      val: inr(s.ma200),     cls:'' },
-        ].map(({ label, val, cls }) => (
-          <div key={label} className={styles.pi}>
-            <div className={styles.pl}>{label}</div>
-            <div className={`${styles.pv} ${cls==='pos'?styles.pos:cls==='neg'?styles.neg:''}`}>{val}</div>
-          </div>
-        ))}
+      {/* Price grid — 2 columns inside card */}
+      <div className={styles.priceGrid}>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>CMP</div>
+          <div className={styles.priceValue}>{inr(s.price)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>Change</div>
+          <div className={`${styles.priceValue} ${chg>=0?styles.pos:styles.neg}`}>{chg>=0?'+':''}{chg.toFixed(2)}%</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>52W High</div>
+          <div className={styles.priceValue}>{inr(s.high_52w)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>52W Low</div>
+          <div className={styles.priceValue}>{inr(s.low_52w)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>vs 52W Low</div>
+          <div className={`${styles.priceValue} ${styles.pos}`}>{pfl ? `+${pfl}%` : '—'}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>vs 52W High</div>
+          <div className={`${styles.priceValue} ${pfh && parseFloat(pfh)>=-25 ? styles.pos : styles.neg}`}>{pfh ? `${pfh}%` : '—'}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>MA 50</div>
+          <div className={styles.priceValue}>{inr(s.ma50)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>MA 150</div>
+          <div className={styles.priceValue}>{inr(s.ma150)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>MA 200</div>
+          <div className={styles.priceValue}>{inr(s.ma200)}</div>
+        </div>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>Data Points</div>
+          <div className={styles.priceValue}>{s.data_points || '—'}</div>
+        </div>
       </div>
 
       {/* Score bar */}
       <div className={styles.scoreRow}>
-        <span className={styles.scoreLbl}>SEPA Score</span>
+        <span className={styles.scoreLbl}>SEPA</span>
         <div className={styles.scoreTrack}>
-          <div className={styles.scoreFill} style={{ width:`${(s.sepa_score/8)*100}%`, background:sc }} />
+          <div className={styles.scoreFill} style={{ width:`${(s.sepa_score/8)*100}%`, background: sc }} />
         </div>
-        <span className={styles.scoreVal} style={{ color:sc }}>{s.sepa_score}/8</span>
+        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/8</span>
       </div>
 
-      {/* Criteria checks */}
+      {/* Criteria checks — 2 column grid */}
       <div className={styles.checks}>
-        {Object.entries(s.criteria||{}).map(([k,v]) => (
-          <div key={k} className={styles.chk}>
+        {Object.entries(s.criteria||{}).map(([k, v]) => (
+          <div key={k} className={`${styles.chk} ${v.pass ? styles.chkPass : styles.chkFail}`}>
             <div className={`${styles.chkIco} ${v.pass?styles.pass:styles.fail}`}>{v.pass?'✓':'✕'}</div>
-            <span className={styles.chkLbl}>{CRIT_LABELS[k]||k}</span>
-            <span className={styles.chkDet}>{(v.detail||'').substring(0,30)}</span>
+            <div className={styles.chkContent}>
+              <span className={styles.chkLbl}>{CRIT_LABELS[k]||k}</span>
+              <span className={styles.chkDet}>{(v.detail||'').substring(0,35)}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -323,20 +401,29 @@ function StockCard({ stock: s, exchange, delay }) {
       {s.pivot && (
         <div className={styles.pivotRow}>
           <span className={styles.pivotIcon}>◈</span>
-          <span className={styles.pivotTxt}>Pivot / Breakout Entry — buy above on 2–3× avg volume</span>
+          <span className={styles.pivotTxt}>Pivot / Breakout Entry</span>
           <span className={styles.pivotPrice}>{inr(s.pivot)}</span>
         </div>
       )}
 
       {/* Note */}
       {s.note && <div className={styles.noteBox}>📊 {s.note}</div>}
+
+      <div className={styles.cardFooter}>{s.data_source}</div>
     </div>
   )
 }
 
+/* ── Icons ────────────────────────────────────────────────── */
 function SearchIcon() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
 }
-function LiveIcon() {
-  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14M4.93 19.07 19.07 4.93" strokeWidth="0"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+function SunIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+}
+function MoonIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+}
+function LiveDot() {
+  return <span style={{display:'inline-block',width:7,height:7,borderRadius:'50%',background:'var(--green)',marginRight:5,boxShadow:'0 0 0 2px var(--green2)'}} />
 }
