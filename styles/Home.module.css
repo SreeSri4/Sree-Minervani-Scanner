@@ -464,9 +464,9 @@
 }
 
 @media (max-width: 780px) {
-  :root { --sidebar-w: 100%; }
+
   .bodyWrap { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border2); overflow-y: visible; max-height: 380px; overflow-y: auto; }
+  .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border2); max-height: 380px; overflow-y: auto; }
   .titleBlock h1 { font-size: 13px; }
   .badge { display: none; }
   .priceGrid { grid-template-columns: repeat(2, 1fr); }
