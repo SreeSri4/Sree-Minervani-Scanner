@@ -6,8 +6,7 @@ const PRESETS = {
   nifty:    ['RELIANCE','TCS','HDFCBANK','INFY','ICICIBANK','HINDUNILVR','SBIN','BAJFINANCE','BHARTIARTL','KOTAKBANK','LT','ASIANPAINT','AXISBANK','MARUTI','SUNPHARMA'],
   it:       ['TCS','INFY','WIPRO','HCLTECH','TECHM','LTIM','MPHASIS','COFORGE','PERSISTENT','KPITTECH'],
   bank:     ['HDFCBANK','ICICIBANK','SBIN','KOTAKBANK','AXISBANK','BANDHANBNK','FEDERALBNK','IDFCFIRSTB','INDUSINDBK','PNB'],
-  smallcap: ['IRCTC','DIXON','POLYCAB','ASTRAL','GRINDWELL','PAGEIND','METROPOLIS','TIINDIA','LAXMIMACH','CAMS'],
-  momentum: ['ADANIENT','SIEMENS','CUMMINSIND','ZOMATO','IRFC','RAILVIKAS','RVNL','BEL','HAL','COCHINSHIP'],
+  smallcap: ['IRCTC','DIXON','POLYCAB','ASTRAL','GRINDWELL','PAGEIND','METROPOLIS','TIINDIA','CMSINFO','CAMS']
 }
 
 const CRIT_LABELS = {
@@ -41,6 +40,7 @@ export default function Home() {
   const [stocks, setStocks]           = useState(null)
   const [error, setError]             = useState('')
   const [fetchErrors, setFetchErrors] = useState([])
+  const [activeFilter, setActiveFilter]   = useState('ALL')   // 'ALL' | 'BUY_READY' | 'WATCH' | 'AVOID'
   const [theme, setTheme]             = useState('dark')
   const inputRef = useRef(null)
 
@@ -86,7 +86,7 @@ export default function Home() {
   // ── Analyze ───────────────────────────────────────────────────
   async function analyze() {
     if (!tickers.length) return
-    setLoading(true); setError(''); setStocks(null); setFetchErrors([])
+    setLoading(true); setError(''); setStocks(null); setFetchErrors([]); setActiveFilter('ALL')
     try {
       const resp = await fetch('/api/analyze', {
         method: 'POST',
@@ -108,6 +108,10 @@ export default function Home() {
   const watch  = stocks?.filter(s => s.verdict === 'WATCH')     || []
   const avoid  = stocks?.filter(s => s.verdict === 'AVOID')     || []
   const sorted = [...buy, ...watch, ...avoid]
+  const filtered = activeFilter === 'ALL' ? sorted
+    : activeFilter === 'BUY_READY' ? buy
+    : activeFilter === 'WATCH'     ? watch
+    : avoid
 
   return (
     <>
@@ -262,10 +266,10 @@ export default function Home() {
               <>
                 <div className={styles.resultsHeader}>
                   <div className={styles.summaryBar}>
-                    <div className={`${styles.sumPill} ${styles.total}`}><span className={styles.val}>{stocks.length}</span> Analyzed</div>
-                    <div className={`${styles.sumPill} ${styles.buyPill}`}><span className={styles.val}>{buy.length}</span> Buy Ready</div>
-                    <div className={`${styles.sumPill} ${styles.watchPill}`}><span className={styles.val}>{watch.length}</span> Watch</div>
-                    <div className={`${styles.sumPill} ${styles.avoidPill}`}><span className={styles.val}>{avoid.length}</span> Avoid</div>
+                    <button onClick={() => setActiveFilter('ALL')} className={`${styles.sumPill} ${styles.total} ${activeFilter==='ALL'?styles.pillActive:''}`}><span className={styles.val}>{stocks.length}</span> All</button>
+                    <button onClick={() => setActiveFilter('BUY_READY')} className={`${styles.sumPill} ${styles.buyPill} ${activeFilter==='BUY_READY'?styles.pillActive:''}`}><span className={styles.val}>{buy.length}</span> Buy Ready</button>
+                    <button onClick={() => setActiveFilter('WATCH')} className={`${styles.sumPill} ${styles.watchPill} ${activeFilter==='WATCH'?styles.pillActive:''}`}><span className={styles.val}>{watch.length}</span> Watch</button>
+                    <button onClick={() => setActiveFilter('AVOID')} className={`${styles.sumPill} ${styles.avoidPill} ${activeFilter==='AVOID'?styles.pillActive:''}`}><span className={styles.val}>{avoid.length}</span> Avoid</button>
                   </div>
                   <div className={styles.infoBar}>
                     <LiveDot /> Live · Yahoo Finance API · {exchange==='NS'?'NSE':'BSE'} · MAs from 1yr OHLCV
@@ -273,10 +277,15 @@ export default function Home() {
                 </div>
 
                 <div className={styles.cardsGrid}>
-                  {sorted.map((s, i) => (
+                  {filtered.map((s, i) => (
                     <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 40} />
                   ))}
                 </div>
+                {filtered.length === 0 && (
+                  <div className={styles.filterEmpty}>
+                    No stocks match <strong>{activeFilter.replace('_',' ')}</strong> — try a different filter
+                  </div>
+                )}
               </>
             )}
 
