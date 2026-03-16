@@ -472,3 +472,30 @@
   .priceGrid { grid-template-columns: repeat(2, 1fr); }
   .checks { grid-template-columns: 1fr; }
 }
+
+/* ── Filter pill active state ───────────────── */
+.sumPill {
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid var(--border);
+}
+.sumPill:hover { border-color: var(--border2); }
+
+.pillActive { border-width: 2px !important; }
+.total.pillActive    { border-color: var(--blue)  !important; background: var(--blue2)  !important; }
+.buyPill.pillActive  { border-color: var(--green) !important; background: var(--green2) !important; }
+.watchPill.pillActive{ border-color: var(--amber) !important; background: var(--amber2) !important; }
+.avoidPill.pillActive{ border-color: var(--red)   !important; background: var(--red2)   !important; }
+
+/* ── Filter empty state ─────────────────────── */
+.filterEmpty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 20px;
+  font-size: 14px;
+  color: var(--text3);
+  background: var(--bg2);
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
