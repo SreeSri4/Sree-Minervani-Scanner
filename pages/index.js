@@ -6,7 +6,8 @@ const PRESETS = {
   nifty:    ['RELIANCE','TCS','HDFCBANK','INFY','ICICIBANK','HINDUNILVR','SBIN','BAJFINANCE','BHARTIARTL','KOTAKBANK','LT','ASIANPAINT','AXISBANK','MARUTI','SUNPHARMA'],
   it:       ['TCS','INFY','WIPRO','HCLTECH','TECHM','LTIM','MPHASIS','COFORGE','PERSISTENT','KPITTECH'],
   bank:     ['HDFCBANK','ICICIBANK','SBIN','KOTAKBANK','AXISBANK','BANDHANBNK','FEDERALBNK','IDFCFIRSTB','INDUSINDBK','PNB'],
-  smallcap: ['IRCTC','DIXON','POLYCAB','ASTRAL','GRINDWELL','PAGEIND','METROPOLIS','TIINDIA','CMSINFO','CAMS']
+  smallcap: ['IRCTC','DIXON','POLYCAB','ASTRAL','GRINDWELL','PAGEIND','METROPOLIS','TIINDIA','LAXMIMACH','CAMS'],
+  momentum: ['ADANIENT','SIEMENS','CUMMINSIND','ZOMATO','IRFC','RAILVIKAS','RVNL','BEL','HAL','COCHINSHIP'],
 }
 
 const CRIT_LABELS = {
@@ -63,7 +64,7 @@ export default function Home() {
     setTickers(prev => {
       const merged = [...prev]
       for (const t of tokens) {
-        if (!merged.includes(t) && merged.length < 15) merged.push(t)
+        if (!merged.includes(t) && merged.length < 50) merged.push(t)
       }
       return merged
     })
@@ -177,7 +178,7 @@ export default function Home() {
             {tickers.length > 0 && (
               <div className={styles.sideSection}>
                 <div className={styles.sectionLabel}>
-                  Selected ({tickers.length}/15)
+                  Selected ({tickers.length}/50)
                   <button className={styles.clearAll} onClick={() => setTickers([])}>clear all</button>
                 </div>
                 <div className={styles.chips}>
