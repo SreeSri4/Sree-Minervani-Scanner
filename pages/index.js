@@ -64,7 +64,7 @@ export default function Home() {
     setTickers(prev => {
       const merged = [...prev]
       for (const t of tokens) {
-        if (!merged.includes(t) && merged.length < 50) merged.push(t)
+        if (!merged.includes(t) && merged.length < 500) merged.push(t)
       }
       return merged
     })
