@@ -179,7 +179,7 @@ export default function Home() {
             {tickers.length > 0 && (
               <div className={styles.sideSection}>
                 <div className={styles.sectionLabel}>
-                  Selected ({tickers.length}/50)
+                  Selected ({tickers.length}/500)
                   <button className={styles.clearAll} onClick={() => setTickers([])}>clear all</button>
                 </div>
                 <div className={styles.chips}>
