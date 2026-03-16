@@ -68,13 +68,17 @@ async function fetchYahooData(symbol) {
     meta.regularMarketPrice ||
     closes[closes.length - 1];
 
-  const prevClose =
-    meta.chartPreviousClose ||
-    meta.regularMarketPreviousClose ||
-    closes[closes.length - 2] ||
-    currentPrice;
-
-  const changePct = prevClose ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+  // Use Yahoo's own 1-day change% directly — most reliable.
+  // regularMarketChangePercent is already the correct 1D %.
+  // chartPreviousClose is the start-of-range close (1yr ago) — never use it for daily change.
+  const changePct =
+    meta.regularMarketChangePercent != null
+      ? meta.regularMarketChangePercent          // Yahoo gives this directly, already %
+      : meta.regularMarketPreviousClose
+        ? ((currentPrice - meta.regularMarketPreviousClose) / meta.regularMarketPreviousClose) * 100
+        : closes.length >= 2
+          ? ((closes[closes.length-1] - closes[closes.length-2]) / closes[closes.length-2]) * 100
+          : 0;
 
   // ── 52W high/low: use meta first (more accurate), fallback to computed ─────────
   const high52w = meta.fiftyTwoWeekHigh  ?? (highs.length  ? Math.max(...highs)  : null);
@@ -326,6 +330,7 @@ export default async function handler(req, res) {
     meta: { fetched: goodData.length, failed: errors.length, exchange, ts: new Date().toISOString() },
   });
 }
+
 
 export const config = {
   api:         { responseLimit: "10mb" },
