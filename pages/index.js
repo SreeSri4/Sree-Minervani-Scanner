@@ -66,7 +66,7 @@ export default function Home() {
   const [error, setError]             = useState('')
   const [fetchErrors, setFetchErrors] = useState([])
   const [activeFilter, setActiveFilter] = useState('ALL')
-  const [theme, setTheme]             = useState('light')
+  const [theme, setTheme]             = useState('dark')
   const inputRef = useRef(null)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
@@ -196,7 +196,7 @@ export default function Home() {
             <div className={styles.sideSection}>
               <div className={styles.sectionLabel}>Quick Presets</div>
               <div className={styles.presets}>
-                {[['nifty','Nifty 50'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
+                {[['nifty','Nifty Top 15'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
                   <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
                 ))}
               </div>
@@ -304,7 +304,9 @@ function StockCard({ stock: s, exchange, delay }) {
   const vconf = VERDICT_CONFIG[s.verdict] || VERDICT_CONFIG['AVOID']
   const zconf = ZONE_CONFIG[s.entry_zone] || ZONE_CONFIG['UNKNOWN']
   const chg = parseFloat(s.change_pct) || 0
-  const sc  = s.sepa_score >= 9 ? 'var(--green)' : s.sepa_score >= 7 ? 'var(--amber)' : 'var(--red)'
+  const maxSc = s.max_score || 10
+  const ratio = s.sepa_score / maxSc
+  const sc    = ratio >= 0.8 ? 'var(--green)' : ratio >= 0.6 ? 'var(--amber)' : 'var(--red)'
   const pfl = s.low_52w  ? (((s.price - s.low_52w)  / s.low_52w)  * 100).toFixed(1) : null
   const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
   const yfu = `https://finance.yahoo.com/quote/${s.yf_symbol}/`
@@ -322,11 +324,12 @@ function StockCard({ stock: s, exchange, delay }) {
           </div>
           <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}</div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          {s.data_points < 200 && <span className={styles.newListingBadge}>⚡ {s.data_points}d history — new listing</span>}
         </div>
         <div className={styles.cardTopRight}>
           <div className={`${styles.vtag} ${styles[vconf.cls]}`}>{vconf.label}</div>
           <div className={`${styles.entryZoneBadge} ${styles[zconf.cls]}`}>{zconf.label}</div>
-          <div className={styles.sepaScoreBig} style={{ color: sc }}>{s.sepa_score}<span>/10</span></div>
+          <div className={styles.sepaScoreBig} style={{ color: sc }}>{s.sepa_score}<span>/{s.max_score||10}</span></div>
         </div>
       </div>
 
@@ -390,15 +393,15 @@ function StockCard({ stock: s, exchange, delay }) {
       {/* Score bar */}
       <div className={styles.scoreRow}>
         <span className={styles.scoreLbl}>SEPA</span>
-        <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{ width:`${(s.sepa_score/10)*100}%`, background: sc }} /></div>
-        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/10</span>
+        <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{ width:`${((s.sepa_score/(s.max_score||10))*100).toFixed(0)}%`, background: sc }} /></div>
+        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/{s.max_score||10}</span>
       </div>
 
       {/* Criteria 2-col */}
       <div className={styles.checks}>
         {Object.entries(s.criteria||{}).map(([k, v]) => (
-          <div key={k} className={`${styles.chk} ${v.pass?styles.chkPass:styles.chkFail}`}>
-            <div className={`${styles.chkIco} ${v.pass?styles.pass:styles.fail}`}>{v.pass?'✓':'✕'}</div>
+          <div key={k} className={`${styles.chk} ${v.na?styles.chkNa:v.pass?styles.chkPass:styles.chkFail}`}>
+            <div className={`${styles.chkIco} ${v.na?styles.naIco:v.pass?styles.pass:styles.fail}`}>{v.na?'—':v.pass?'✓':'✕'}</div>
             <div className={styles.chkContent}>
               <span className={styles.chkLbl}>{CRIT_LABELS[k]||k}</span>
               <span className={styles.chkDet}>{(v.detail||'').substring(0,36)}</span>
