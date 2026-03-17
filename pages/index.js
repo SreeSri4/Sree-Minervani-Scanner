@@ -377,8 +377,9 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 50</div><div className={styles.priceValue}>{inr(s.ma50)}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 150</div><div className={styles.priceValue}>{inr(s.ma150)}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 200</div><div className={styles.priceValue}>{inr(s.ma200)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>Avg Vol 20D</div><div className={`${styles.priceValue} ${s.avg_vol20&&s.avg_vol20>=100000?styles.pos:styles.neg}`}>{s.avg_vol20 ? (s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K') : '—'}</div><div style={{marginTop:'3px'}}>{bandBadge}</div></div>
+        <div className={styles.priceBlock}><div className={styles.priceLabel}>Avg Vol 20D</div><div className={`${styles.priceValue} ${s.avg_vol20&&s.avg_vol20>=100000?styles.pos:styles.neg}`}>{s.avg_vol20 ? (s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K') : '—'}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>ATR %</div><div className={styles.priceValue}>{s.atr_pct ? s.atr_pct.toFixed(1)+'%' : '—'}</div></div>
+        <div style={{marginTop:'3px'}}>{bandBadge}</div>        
       </div>
 
       {/* Entry zone panel */}
