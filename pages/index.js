@@ -66,7 +66,7 @@ export default function Home() {
   const [error, setError]             = useState('')
   const [fetchErrors, setFetchErrors] = useState([])
   const [activeFilter, setActiveFilter] = useState('ALL')
-  const [theme, setTheme]             = useState('dark')
+  const [theme, setTheme]             = useState('Light')
   const inputRef = useRef(null)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
