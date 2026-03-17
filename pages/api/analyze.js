@@ -304,7 +304,7 @@ function scoreSEPA(d) {
                           "BELOW_PIVOT";      // Not ready yet
 
   c.C9 = {
-    pass: entryZone === "IN_BUY_ZONE",
+    pass: ["IN_BUY_ZONE", "NEAR_PIVOT"].includes(entryZone),
     detail: pivot
       ? `${pivotPct !== null ? (pivotPct >= 0 ? "+" : "") + pivotPct.toFixed(1) + "% vs pivot ₹" + pivot : "pivot ₹" + pivot}`
       : "Pivot unavailable",
