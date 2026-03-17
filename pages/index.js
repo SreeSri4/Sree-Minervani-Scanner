@@ -67,7 +67,7 @@ export default function Home() {
   const [fetchErrors, setFetchErrors] = useState([])
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [theme, setTheme]             = useState('light')
-  const [priceBands, setPriceBands]   = useState({})
+  const [priceBands, setPriceBands]   = useState(null)
   const inputRef = useRef(null)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
@@ -353,19 +353,17 @@ export default function Home() {
 }
 
 /* ── Stock Card ────────────────────────────────────────────── */
-function getBandBadge(band, styles) {
-  // band is undefined  → CSV not yet loaded (show nothing)
-  // band is "No Band"  → stock has no price band (grey)
-  // band is "2","5"    → tight band (red)
-  // band is "10"       → medium band (orange)
-  // band is "20"       → wide band (green)
-  // band is "40"       → treat as wide (green)
-  if (band === undefined || band === null) return null  // still loading
-  const b = String(band).trim()
+function getBandBadge(bandsMap, ticker, styles) {
+  // bandsMap === null  → CSV not yet loaded, show a neutral loading badge
+  if (bandsMap === null) return <span className={`${styles.priceBand} ${styles.bandGrey}`}>Band…</span>
+  const raw = bandsMap[ticker]
+  // ticker not in map at all → No Band (NSE doesn't restrict it)
+  if (raw === undefined) return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
+  const b = String(raw).trim()
   if (b === '2' || b === '5')  return <span className={`${styles.priceBand} ${styles.bandRed}`}>{b}% Band</span>
   if (b === '10')               return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10% Band</span>
   if (b === '20' || b === '40') return <span className={`${styles.priceBand} ${styles.bandGreen}`}>{b}% Band</span>
-  // "No Band" or any unrecognised value
+  // explicit "No Band" string in CSV
   return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
 }
 
@@ -380,8 +378,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
   const pfl = s.low_52w  ? (((s.price - s.low_52w)  / s.low_52w)  * 100).toFixed(1) : null
   const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
   const yfu = `https://finance.yahoo.com/quote/${s.yf_symbol}/`
-  const bandRaw = priceBands ? priceBands[s.ticker] : undefined
-  const bandBadge = getBandBadge(bandRaw, styles)
+  const bandBadge = getBandBadge(priceBands, s.ticker, styles)
 
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{ animationDelay:`${delay}ms` }}>
