@@ -216,3 +216,20 @@
   .badge { display:none; }
   .entryRow { grid-template-columns:repeat(2,1fr); }
 }
+
+/* ── N/A criteria (insufficient history) ─────── */
+.chkNa  { opacity: 0.45; }
+.naIco  { background: var(--bg4); color: var(--text3); border: 1px solid var(--border2); font-size: 11px; }
+
+/* ── New listing badge ───────────────────────── */
+.newListingBadge {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--amber);
+  background: var(--amber2);
+  border: 1px solid rgba(245,183,49,.3);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
