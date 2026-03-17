@@ -322,13 +322,13 @@ function getBandBadge(bandsMap, ticker, styles) {
   if (bandsMap === null) return <span className={`${styles.priceBand} ${styles.bandGrey}`}>Band…</span>
   const raw = bandsMap[ticker]
   // ticker not in map at all → No Band (NSE doesn't restrict it)
-  if (raw === undefined) return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
+  if (raw === undefined) return <span className={`${styles.priceBand} ${styles.bandGrey}`}>NB</span>
   const b = String(raw).trim()
-  if (b === '2' || b === '5')  return <span className={`${styles.priceBand} ${styles.bandRed}`}>{b}% Band</span>
-  if (b === '10')               return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10% Band</span>
-  if (b === '20' || b === '40') return <span className={`${styles.priceBand} ${styles.bandGreen}`}>{b}% Band</span>
+  if (b === '2' || b === '5')  return <span className={`${styles.priceBand} ${styles.bandRed}`}>{b}%</span>
+  if (b === '10')               return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10%</span>
+  if (b === '20' || b === '40') return <span className={`${styles.priceBand} ${styles.bandGreen}`}>{b}%</span>
   // explicit "No Band" string in CSV
-  return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
+  return <span className={`${styles.priceBand} ${styles.bandGrey}`}>NB</span>
 }
 
 function StockCard({ stock: s, exchange, delay, priceBands }) {
