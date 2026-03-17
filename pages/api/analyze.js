@@ -303,8 +303,8 @@ export default async function handler(req, res) {
   const { tickers, exchange } = req.body || {};
   if (!Array.isArray(tickers) || tickers.length === 0)
     return res.status(400).json({ error: "No tickers provided" });
-  if (tickers.length > 50)
-    return res.status(400).json({ error: "Maximum 50 stocks per request" });
+  if (tickers.length > 500)
+    return res.status(400).json({ error: "Maximum 500 stocks per request" });
 
   const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
