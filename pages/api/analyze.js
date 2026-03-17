@@ -2,6 +2,51 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// ─── NSE price band fetcher ────────────────────────────────────────────────────
+let _bandCache = null;
+let _bandCacheTs = 0;
+
+async function getNsePriceBands() {
+  const now = Date.now();
+  if (_bandCache && now - _bandCacheTs < 60 * 60 * 1000) return _bandCache; // 1h cache
+
+  const url = "https://archives.nseindia.com/content/equities/sec_list.csv";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`NSE sec_list.csv HTTP ${res.status}`);
+  const text = await res.text();
+
+  const lines = text.trim().split(/\r?\n/);
+  const [headerLine, ...rows] = lines;
+  const headers = headerLine.split(",").map((h) => h.trim());
+  const idxSymbol = headers.indexOf("SYMBOL");
+  const idxBand =
+    headers.indexOf("PRICE_BAND") !== -1
+      ? headers.indexOf("PRICE_BAND")
+      : headers.indexOf("PRICE BAND");
+
+  const map = {};
+  if (idxSymbol === -1 || idxBand === -1) {
+    _bandCache = map;
+    _bandCacheTs = now;
+    return map;
+  }
+
+  for (const row of rows) {
+    const cols = row.split(",");
+    const symbol = (cols[idxSymbol] || "").trim();
+    const bandRaw = (cols[idxBand] || "").trim(); // e.g. "2", "5", "10", "20"
+    if (!symbol || !bandRaw) continue;
+    const band = Number(bandRaw.replace("%", "").trim());
+    if (!Number.isNaN(band)) {
+      map[symbol] = band;
+    }
+  }
+
+  _bandCache = map;
+  _bandCacheTs = now;
+  return map;
+}
+
 // ─── Yahoo Finance fetcher — with crumb auth + retries + fallback hosts ─────────
 
 // Step 1: get a session cookie + crumb (Yahoo requires this for chart API)
