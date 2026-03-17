@@ -72,55 +72,19 @@ export default function Home() {
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
 
-  // Fetch NSE price band data on mount
-  // CSV format: Symbol,Series,Security Name,Band,Remarks
-  // Band values: "2", "5", "10", "20", "No Band"
+  // Fetch NSE price band data via our server-side API route (avoids CORS)
   useEffect(() => {
     async function fetchPriceBands() {
-      // Try direct fetch first; NSE may block CORS so we fallback to a CORS proxy
-      const DIRECT = 'https://archives.nseindia.com/content/equities/sec_list.csv'
-      const PROXY  = 'https://corsproxy.io/?' + encodeURIComponent(DIRECT)
-
-      async function tryFetch(url) {
-        const r = await fetch(url, { cache: 'no-cache' })
-        if (!r.ok) throw new Error('HTTP ' + r.status)
-        return r.text()
+      try {
+        const resp = await fetch('/api/pricebands')
+        if (!resp.ok) { console.warn('[PriceBand] API error:', resp.status); return }
+        const data = await resp.json()
+        if (data.error) { console.warn('[PriceBand] API returned error:', data.error); return }
+        console.log('[PriceBand] Loaded', Object.keys(data).length, 'entries')
+        setPriceBands(data)
+      } catch (e) {
+        console.error('[PriceBand] Fetch failed:', e)
       }
-
-      let text = null
-      try { text = await tryFetch(DIRECT) } catch (_) {}
-      if (!text) {
-        try { text = await tryFetch(PROXY) } catch (_) {}
-      }
-      if (!text) { console.warn('[PriceBand] Could not fetch CSV (CORS blocked?)'); return }
-
-      const bands = {}
-      const lines = text.split('\n')
-      // Skip header row (row 0)
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim()
-        if (!line) continue
-        // Simple CSV split — fields: Symbol,Series,Security Name,Band,Remarks
-        // "Security Name" may contain commas so split carefully from the right
-        // safer: split on first comma (symbol), skip series, find band before Remarks
-        const cols = line.split(',')
-        if (cols.length < 4) continue
-        const sym  = cols[0].trim().toUpperCase()
-        // Band is always col index 3 (Symbol=0, Series=1, Security Name=2, Band=3)
-        // BUT if Security Name has commas, band shifts right — handle both cases:
-        // Find band: it's the last numeric or "No Band" before the Remarks column
-        let band = cols[3].trim().replace(/^"|"$/g, '')
-        // If col[3] looks like part of a company name (not a number / "No Band"), scan forward
-        if (!/^(\d+|No Band)$/i.test(band)) {
-          for (let c = 4; c < cols.length; c++) {
-            const v = cols[c].trim().replace(/^"|"$/g, '')
-            if (/^(\d+|No Band)$/i.test(v)) { band = v; break }
-          }
-        }
-        if (sym && band) bands[sym] = band
-      }
-      console.log('[PriceBand] Loaded', Object.keys(bands).length, 'entries')
-      setPriceBands(bands)
     }
     fetchPriceBands()
   }, [])
