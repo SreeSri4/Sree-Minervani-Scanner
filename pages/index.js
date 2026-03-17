@@ -3,7 +3,7 @@ import Head from 'next/head'
 import styles from '../styles/Home.module.css'
 
 const PRESETS = {
-  nifty:    ['ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJFINANCE', 'BAJAJFINSV', 'BEL', 'BHARTIARTL', 'BPCL', 'BRITANNIA', 'CIPLA', 'COALINDIA', 'DRREDDY', 'EICHERMOT', 'ETERNAL', 'GRASIM', 'HCLTECH', 'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HINDUNILVR', 'ICICIBANK', 'INDUSINDBK', 'INFY', 'ITC', 'JIOFIN', 'JSWSTEEL', 'KOTAKBANK', 'LT', 'M&M', 'MARUTI', 'MAXHEALTH', 'NESTLEIND', 'NTPC', 'ONGC', 'POWERGRID', 'RELIANCE', 'SBILIFE', 'SBIN', 'SUNPHARMA', 'TATACONSUM', 'TMPV', 'TATASTEEL', 'TCS', 'TECHM', 'TITAN', 'ULTRACEMCO', 'WIPRO'],
+  nifty:    ['RELIANCE','HDFCBANK','BHARTIARTL','SBIN','ICICIBANK','TCS','BAJFINANCE','HINDUNILVR','INFY','LT','SUNPHARMA','MARUTI','ITC','M&M','AXISBANK','NTPC','KOTAKBANK','TITAN','HCLTECH','ONGC','ULTRACEMCO','ADANIPORTS','BEL','COALINDIA','BAJAJFINSV','JSWSTEEL','POWERGRID','BAJAJ-AUTO','NESTLEIND','TATASTEEL','ADANIENT','ETERNAL','ASIANPAINT','HINDALCO','WIPRO','SBILIFE','EICHERMOT','SHRIRAMFIN','GRASIM','INDIGO','JIOFIN','HDFCLIFE','TECHM','TRENT','TATAMOTORS','TATACONSUM','APOLLOHOSP','DRREDDY','CIPLA','MAXHEALTH'],
   it:       ['TCS','INFY','WIPRO','HCLTECH','TECHM','LTIM','MPHASIS','COFORGE','PERSISTENT','KPITTECH'],
   bank:     ['HDFCBANK','ICICIBANK','SBIN','KOTAKBANK','AXISBANK','BANDHANBNK','FEDERALBNK','IDFCFIRSTB','INDUSINDBK','PNB'],
   smallcap: ['IRCTC','DIXON','POLYCAB','ASTRAL','GRINDWELL','PAGEIND','METROPOLIS','TIINDIA','CMSINFO','CAMS'],
@@ -66,7 +66,7 @@ export default function Home() {
   const [error, setError]             = useState('')
   const [fetchErrors, setFetchErrors] = useState([])
   const [activeFilter, setActiveFilter] = useState('ALL')
-  const [theme, setTheme]             = useState('Light')
+  const [theme, setTheme]             = useState('light')
   const inputRef = useRef(null)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
