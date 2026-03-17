@@ -49,7 +49,7 @@ const VERDICT_CONFIG = {
 
 function inr(n) {
   if (n == null) return '—'
-  return '₹' + new Intl.NumberFormat('en-IN').format(Math.round(Number(n)))
+  return '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))
 }
 function pctFmt(n, decimals = 1) {
   if (n == null) return '—'
