@@ -73,24 +73,54 @@ export default function Home() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
 
   // Fetch NSE price band data on mount
+  // CSV format: Symbol,Series,Security Name,Band,Remarks
+  // Band values: "2", "5", "10", "20", "No Band"
   useEffect(() => {
     async function fetchPriceBands() {
-      try {
-        const resp = await fetch('https://archives.nseindia.com/content/equities/sec_list.csv')
-        const text = await resp.text()
-        const bands = {}
-        const lines = text.split('\n')
-        // Header: Symbol,Series,Security Name,Band,Remarks
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',')
-          if (cols[0] && cols[3] !== undefined) {
-            bands[cols[0].trim().toUpperCase()] = cols[3].trim()
+      // Try direct fetch first; NSE may block CORS so we fallback to a CORS proxy
+      const DIRECT = 'https://archives.nseindia.com/content/equities/sec_list.csv'
+      const PROXY  = 'https://corsproxy.io/?' + encodeURIComponent(DIRECT)
+
+      async function tryFetch(url) {
+        const r = await fetch(url, { cache: 'no-cache' })
+        if (!r.ok) throw new Error('HTTP ' + r.status)
+        return r.text()
+      }
+
+      let text = null
+      try { text = await tryFetch(DIRECT) } catch (_) {}
+      if (!text) {
+        try { text = await tryFetch(PROXY) } catch (_) {}
+      }
+      if (!text) { console.warn('[PriceBand] Could not fetch CSV (CORS blocked?)'); return }
+
+      const bands = {}
+      const lines = text.split('\n')
+      // Skip header row (row 0)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (!line) continue
+        // Simple CSV split — fields: Symbol,Series,Security Name,Band,Remarks
+        // "Security Name" may contain commas so split carefully from the right
+        // safer: split on first comma (symbol), skip series, find band before Remarks
+        const cols = line.split(',')
+        if (cols.length < 4) continue
+        const sym  = cols[0].trim().toUpperCase()
+        // Band is always col index 3 (Symbol=0, Series=1, Security Name=2, Band=3)
+        // BUT if Security Name has commas, band shifts right — handle both cases:
+        // Find band: it's the last numeric or "No Band" before the Remarks column
+        let band = cols[3].trim().replace(/^"|"$/g, '')
+        // If col[3] looks like part of a company name (not a number / "No Band"), scan forward
+        if (!/^(\d+|No Band)$/i.test(band)) {
+          for (let c = 4; c < cols.length; c++) {
+            const v = cols[c].trim().replace(/^"|"$/g, '')
+            if (/^(\d+|No Band)$/i.test(v)) { band = v; break }
           }
         }
-        setPriceBands(bands)
-      } catch (e) {
-        // silently fail — band column just shows N/A
+        if (sym && band) bands[sym] = band
       }
+      console.log('[PriceBand] Loaded', Object.keys(bands).length, 'entries')
+      setPriceBands(bands)
     }
     fetchPriceBands()
   }, [])
@@ -324,15 +354,18 @@ export default function Home() {
 
 /* ── Stock Card ────────────────────────────────────────────── */
 function getBandBadge(band, styles) {
-  if (band === '2' || band === '5') {
-    return <span className={`${styles.priceBand} ${styles.bandRed}`}>{band}% Band</span>
-  }
-  if (band === '10') {
-    return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10% Band</span>
-  }
-  if (band === '20') {
-    return <span className={`${styles.priceBand} ${styles.bandGreen}`}>20% Band</span>
-  }
+  // band is undefined  → CSV not yet loaded (show nothing)
+  // band is "No Band"  → stock has no price band (grey)
+  // band is "2","5"    → tight band (red)
+  // band is "10"       → medium band (orange)
+  // band is "20"       → wide band (green)
+  // band is "40"       → treat as wide (green)
+  if (band === undefined || band === null) return null  // still loading
+  const b = String(band).trim()
+  if (b === '2' || b === '5')  return <span className={`${styles.priceBand} ${styles.bandRed}`}>{b}% Band</span>
+  if (b === '10')               return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10% Band</span>
+  if (b === '20' || b === '40') return <span className={`${styles.priceBand} ${styles.bandGreen}`}>{b}% Band</span>
+  // "No Band" or any unrecognised value
   return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
 }
 
