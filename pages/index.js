@@ -80,7 +80,7 @@ export default function Home() {
     if (!tokens.length) return
     setTickers(prev => {
       const merged = [...prev]
-      for (const t of tokens) { if (!merged.includes(t) && merged.length < 50) merged.push(t) }
+      for (const t of tokens) { if (!merged.includes(t) && merged.length < 500) merged.push(t) }
       return merged
     })
     setInput('')
