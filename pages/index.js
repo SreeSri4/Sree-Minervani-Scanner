@@ -67,9 +67,33 @@ export default function Home() {
   const [fetchErrors, setFetchErrors] = useState([])
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [theme, setTheme]             = useState('light')
+  const [priceBands, setPriceBands]   = useState({})
   const inputRef = useRef(null)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
+
+  // Fetch NSE price band data on mount
+  useEffect(() => {
+    async function fetchPriceBands() {
+      try {
+        const resp = await fetch('https://archives.nseindia.com/content/equities/sec_list.csv')
+        const text = await resp.text()
+        const bands = {}
+        const lines = text.split('\n')
+        // Header: Symbol,Series,Security Name,Band,Remarks
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',')
+          if (cols[0] && cols[3] !== undefined) {
+            bands[cols[0].trim().toUpperCase()] = cols[3].trim()
+          }
+        }
+        setPriceBands(bands)
+      } catch (e) {
+        // silently fail — band column just shows N/A
+      }
+    }
+    fetchPriceBands()
+  }, [])
 
   function parseTickers(raw) {
     return raw.split(/[\s,;\n\t]+/).map(t => t.trim().toUpperCase().replace(/[^A-Z0-9&]/g, '')).filter(Boolean)
@@ -275,7 +299,7 @@ export default function Home() {
                 </div>
 
                 <div className={styles.cardsGrid}>
-                  {filtered.map((s, i) => <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 40} />)}
+                  {filtered.map((s, i) => <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 40} priceBands={priceBands} />)}
                 </div>
 
                 {filtered.length === 0 && (
@@ -299,7 +323,20 @@ export default function Home() {
 }
 
 /* ── Stock Card ────────────────────────────────────────────── */
-function StockCard({ stock: s, exchange, delay }) {
+function getBandBadge(band, styles) {
+  if (band === '2' || band === '5') {
+    return <span className={`${styles.priceBand} ${styles.bandRed}`}>{band}% Band</span>
+  }
+  if (band === '10') {
+    return <span className={`${styles.priceBand} ${styles.bandOrange}`}>10% Band</span>
+  }
+  if (band === '20') {
+    return <span className={`${styles.priceBand} ${styles.bandGreen}`}>20% Band</span>
+  }
+  return <span className={`${styles.priceBand} ${styles.bandGrey}`}>No Band</span>
+}
+
+function StockCard({ stock: s, exchange, delay, priceBands }) {
   const vc  = s.verdict==='BUY_READY' ? 'buyReady' : s.verdict==='NEAR_PIVOT' ? 'nearPivCard' : s.verdict==='EXTENDED' ? 'extCard' : s.verdict==='WATCH' ? 'watchCard' : 'avoidCard'
   const vconf = VERDICT_CONFIG[s.verdict] || VERDICT_CONFIG['AVOID']
   const zconf = ZONE_CONFIG[s.entry_zone] || ZONE_CONFIG['UNKNOWN']
@@ -310,6 +347,8 @@ function StockCard({ stock: s, exchange, delay }) {
   const pfl = s.low_52w  ? (((s.price - s.low_52w)  / s.low_52w)  * 100).toFixed(1) : null
   const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
   const yfu = `https://finance.yahoo.com/quote/${s.yf_symbol}/`
+  const bandRaw = priceBands ? priceBands[s.ticker] : undefined
+  const bandBadge = getBandBadge(bandRaw, styles)
 
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{ animationDelay:`${delay}ms` }}>
@@ -344,7 +383,7 @@ function StockCard({ stock: s, exchange, delay }) {
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 50</div><div className={styles.priceValue}>{inr(s.ma50)}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 150</div><div className={styles.priceValue}>{inr(s.ma150)}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 200</div><div className={styles.priceValue}>{inr(s.ma200)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>Avg Vol 20D</div><div className={`${styles.priceValue} ${s.avg_vol20&&s.avg_vol20>=100000?styles.pos:styles.neg}`}>{s.avg_vol20 ? (s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K') : '—'}</div></div>
+        <div className={styles.priceBlock}><div className={styles.priceLabel}>Avg Vol 20D</div><div className={`${styles.priceValue} ${s.avg_vol20&&s.avg_vol20>=100000?styles.pos:styles.neg}`}>{s.avg_vol20 ? (s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K') : '—'}</div><div style={{marginTop:'3px'}}>{bandBadge}</div></div>
         <div className={styles.priceBlock}><div className={styles.priceLabel}>ATR %</div><div className={styles.priceValue}>{s.atr_pct ? s.atr_pct.toFixed(1)+'%' : '—'}</div></div>
       </div>
 
