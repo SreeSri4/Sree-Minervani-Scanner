@@ -196,7 +196,7 @@ export default function Home() {
             <div className={styles.sideSection}>
               <div className={styles.sectionLabel}>Quick Presets</div>
               <div className={styles.presets}>
-                {[['nifty','Nifty Top 15'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
+                {[['nifty','Nifty 50'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
                   <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
                 ))}
               </div>
