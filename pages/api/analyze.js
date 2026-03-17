@@ -2,29 +2,113 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ─── Yahoo Finance direct fetcher ─────────────────────────────────────────────
-async function fetchYahooData(symbol) {
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
-    `?interval=1d&range=1y&includePrePost=false`;
+// ─── Yahoo Finance fetcher — with crumb auth + retries + fallback hosts ─────────
 
-  const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    Accept: "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    Referer: "https://finance.yahoo.com/",
-    Origin: "https://finance.yahoo.com",
+// Step 1: get a session cookie + crumb (Yahoo requires this for chart API)
+let _crumbCache = null;
+async function getYahooCrumb() {
+  if (_crumbCache) return _crumbCache;
+  try {
+    // Hit the finance page to get a session cookie
+    const cookieRes = await fetch("https://finance.yahoo.com/", {
+      headers: { "User-Agent": UA, Accept: "text/html" },
+      redirect: "follow",
+    });
+    const cookie = cookieRes.headers.get("set-cookie") || "";
+    // Extract crumb from the crumb API
+    const crumbRes = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+      headers: {
+        "User-Agent": UA,
+        Cookie: cookie.split(";")[0],
+        Accept: "text/plain",
+        Referer: "https://finance.yahoo.com/",
+      },
+    });
+    if (crumbRes.ok) {
+      const crumb = await crumbRes.text();
+      if (crumb && crumb.length < 50 && !crumb.includes("<")) {
+        _crumbCache = { crumb: crumb.trim(), cookie: cookie.split(";")[0] };
+        return _crumbCache;
+      }
+    }
+  } catch (_) {}
+  return null; // proceed without crumb — some tickers still work
+}
+
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+// Step 2: try multiple hosts & endpoints with retries
+async function fetchYahooData(symbol) {
+  const auth = await getYahooCrumb();
+
+  const buildUrl = (host, crumb) => {
+    const base = `https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}`;
+    const params = `?interval=1d&range=1y&includePrePost=false${crumb ? "&crumb=" + encodeURIComponent(crumb) : ""}`;
+    return base + params;
   };
 
-  const res = await fetch(url, { headers, cache: "no-store" });
-  if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status} for ${symbol}`);
+  const HOSTS = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"];
+  const MAX_RETRIES = 3;
+  let lastError;
 
-  const json = await res.json();
-  if (json.chart?.error) throw new Error(json.chart.error.description || `No data for ${symbol}`);
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const host = HOSTS[attempt % HOSTS.length];
+    const url  = buildUrl(host, auth?.crumb);
 
-  const result = json?.chart?.result?.[0];
-  if (!result) throw new Error(`Empty response for ${symbol}`);
+    const headers = {
+      "User-Agent": UA,
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      Referer: "https://finance.yahoo.com/",
+      ...(auth?.cookie ? { Cookie: auth.cookie } : {}),
+    };
 
+    try {
+      // Exponential back-off: 0ms, 800ms, 1600ms
+      if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 800));
+
+      const res = await fetch(url, { headers, cache: "no-store" });
+
+      // 401 = stale crumb — clear cache and retry
+      if (res.status === 401) {
+        _crumbCache = null;
+        const freshAuth = await getYahooCrumb();
+        const retryUrl = buildUrl(host, freshAuth?.crumb);
+        const retryRes = await fetch(retryUrl, {
+          headers: { ...headers, ...(freshAuth?.cookie ? { Cookie: freshAuth.cookie } : {}) },
+          cache: "no-store",
+        });
+        if (!retryRes.ok) { lastError = new Error(`HTTP ${retryRes.status}`); continue; }
+        const retryJson = await retryRes.json();
+        const r = retryJson?.chart?.result?.[0];
+        if (r) return parseYahooResult(r, symbol);
+        lastError = new Error(retryJson?.chart?.error?.description || "No data after crumb refresh");
+        continue;
+      }
+
+      if (!res.ok) { lastError = new Error(`HTTP ${res.status} from ${host}`); continue; }
+
+      const json = await res.json();
+      if (json.chart?.error) {
+        lastError = new Error(json.chart.error.description || `Yahoo error for ${symbol}`);
+        continue;
+      }
+
+      const result = json?.chart?.result?.[0];
+      if (!result) { lastError = new Error(`Empty response from ${host}`); continue; }
+
+      return parseYahooResult(result, symbol);
+
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch ${symbol} after ${MAX_RETRIES} attempts`);
+}
+
+// Step 3: parse the Yahoo chart result into our data shape
+function parseYahooResult(result, symbol) {
   const meta   = result.meta || {};
   const quotes = result.indicators?.quote?.[0] || {};
 
@@ -33,7 +117,8 @@ async function fetchYahooData(symbol) {
   const lows    = (quotes.low    || []).filter(Boolean);
   const volumes = (quotes.volume || []).filter(Boolean);
 
-  if (closes.length < 20) throw new Error(`Only ${closes.length} days of data for ${symbol}`);
+  // New listings may have very few days — allow any amount, score what's available
+  if (closes.length < 1) throw new Error(`No price data returned for ${symbol}`);
 
   // ── Moving averages ───────────────────────────────────────────────────────────
   const sma = (n) => {
@@ -98,10 +183,14 @@ async function fetchYahooData(symbol) {
     return currentPrice ? (totalTR / n / currentPrice) * 100 : null;
   })();
 
-  // ── Average volume (20-day) ───────────────────────────────────────────────────
-  const avgVol20 = volumes.length >= 20
-    ? Math.round(volumes.slice(-20).reduce((a, b) => a + b, 0) / 20)
-    : null;
+  // ── Average volume — use up to 20 days, min 5 ───────────────────────────────
+  const volDays  = Math.min(20, volumes.length);
+  const avgVol20 = volDays >= 5
+    ? Math.round(volumes.slice(-volDays).reduce((a, b) => a + b, 0) / volDays)
+    : volumes.length > 0
+      ? Math.round(volumes.reduce((a, b) => a + b, 0) / volumes.length)
+      : null;
+  const volDaysUsed = volDays || volumes.length; // for display
 
   return {
     symbol,
@@ -121,11 +210,12 @@ async function fetchYahooData(symbol) {
     atrPct:        atrPct        ? r2(atrPct)        : null,
     avgVol20,
     dataPoints:    closes.length,
+    volDaysUsed:   volDaysUsed || 0,
     lastUpdated:   meta.regularMarketTime
       ? new Date(meta.regularMarketTime * 1000).toISOString()
       : new Date().toISOString(),
   };
-}
+} // end parseYahooResult
 
 function r2(n) {
   return n != null ? Math.round(Number(n) * 100) / 100 : null;
@@ -133,34 +223,33 @@ function r2(n) {
 
 // ─── SEPA scoring + entry zone ────────────────────────────────────────────────
 function scoreSEPA(d) {
-  const { currentPrice: p, ma50, ma150, ma200, high52w, low52w, ma200Trending, pivotFromData, baseTightness, avgVol20 } = d;
+  const { currentPrice: p, ma50, ma150, ma200, high52w, low52w, ma200Trending,
+          pivotFromData, baseTightness, avgVol20, dataPoints, volDaysUsed } = d;
+
+  // Helper: criteria that can't be evaluated due to missing history
+  // are marked na=true — they are excluded from scoring (neither pass nor fail)
+  const na = (reason) => ({ pass: false, na: true, detail: `N/A — ${reason}` });
   const c = {};
 
   // C1: Price > MA200 AND Price > MA150
-  c.C1 = {
-    pass: !!(p && ma200 && ma150 && p > ma200 && p > ma150),
-    detail: ma200 && ma150 ? `₹${p} vs MA200 ₹${ma200} · MA150 ₹${ma150}` : "Insufficient MA data",
-  };
+  c.C1 = (!ma200 || !ma150)
+    ? na(`need 150+ days, have ${dataPoints}`)
+    : { pass: p > ma200 && p > ma150, detail: `₹${p} vs MA200 ₹${ma200} · MA150 ₹${ma150}` };
 
   // C2: MA150 > MA200
-  c.C2 = {
-    pass: !!(ma150 && ma200 && ma150 > ma200),
-    detail: ma150 && ma200 ? `MA150 ₹${ma150} ${ma150 > ma200 ? ">" : "<"} MA200 ₹${ma200}` : "Insufficient MA data",
-  };
+  c.C2 = (!ma150 || !ma200)
+    ? na(`need 150+ days, have ${dataPoints}`)
+    : { pass: ma150 > ma200, detail: `MA150 ₹${ma150} ${ma150 > ma200 ? ">" : "<"} MA200 ₹${ma200}` };
 
   // C3: MA200 trending up
-  c.C3 = {
-    pass: ma200Trending === true,
-    detail: ma200Trending === true ? "MA200 rising over past ~1 month"
-          : ma200Trending === false ? "MA200 flat or declining"
-          : "Need 222+ days of data",
-  };
+  c.C3 = (ma200Trending === null)
+    ? na(`need 222+ days, have ${dataPoints}`)
+    : { pass: ma200Trending === true, detail: ma200Trending ? "MA200 rising ~1 month ✓" : "MA200 flat/declining" };
 
   // C4: MA50 > MA150 AND MA50 > MA200 (proper bullish stack)
-  c.C4 = {
-    pass: !!(ma50 && ma150 && ma200 && ma50 > ma150 && ma50 > ma200),
-    detail: ma50 && ma150 && ma200 ? `MA50 ₹${ma50} · MA150 ₹${ma150} · MA200 ₹${ma200}` : "Insufficient MA data",
-  };
+  c.C4 = (!ma50 || !ma150 || !ma200)
+    ? na(`need 200+ days for full stack, have ${dataPoints}`)
+    : { pass: ma50 > ma150 && ma50 > ma200, detail: `MA50 ₹${ma50} · MA150 ₹${ma150} · MA200 ₹${ma200}` };
 
   // C5: Price >= 25% above 52W low
   const pctAboveLow = low52w ? ((p - low52w) / low52w) * 100 : null;
@@ -182,7 +271,9 @@ function scoreSEPA(d) {
     (pctAboveLow  !== null ? Math.min(pctAboveLow  * 0.3, 20) : 0) +
     (pctBelowHigh !== null ? Math.max(0, 25 + pctBelowHigh) * 0.6 : 0);
   const rsProxy = Math.min(99, Math.max(1, Math.round(trendScore)));
-  c.C7 = { pass: rsProxy >= 70, detail: `RS ~${rsProxy} (trend-proxy vs Nifty50)`, rsRating: rsProxy };
+  c.C7 = dataPoints < 30
+    ? na(`need 30+ days for RS, have ${dataPoints}`)
+    : { pass: rsProxy >= 70, detail: `RS ~${rsProxy} (trend-proxy vs Nifty50)`, rsRating: rsProxy };
 
   // C8: VCP / base tightness — stddev of last 15 closes < 4% of price = tight base
   const isTight = baseTightness !== null && baseTightness < 4;
@@ -213,8 +304,7 @@ function scoreSEPA(d) {
                           "BELOW_PIVOT";      // Not ready yet
 
   c.C9 = {
-    // pass: entryZone === "IN_BUY_ZONE",
-    pass: ["IN_BUY_ZONE", "NEAR_PIVOT"].includes(entryZone),
+    pass: entryZone === "IN_BUY_ZONE",
     detail: pivot
       ? `${pivotPct !== null ? (pivotPct >= 0 ? "+" : "") + pivotPct.toFixed(1) + "% vs pivot ₹" + pivot : "pivot ₹" + pivot}`
       : "Pivot unavailable",
@@ -225,13 +315,13 @@ function scoreSEPA(d) {
 
   // C10: 20-day average volume >= 100,000 (sufficient liquidity)
   const VOL_MIN = 100_000;
-  c.C10 = {
-    pass: avgVol20 !== null && avgVol20 >= VOL_MIN,
-    detail: avgVol20 !== null
-      ? `Avg vol ${(avgVol20 / 1000).toFixed(0)}K — ${avgVol20 >= VOL_MIN ? "liquid ✓" : "below 100K threshold"}`
-      : "Volume data unavailable",
-    avgVol20,
-  };
+  c.C10 = avgVol20 === null
+    ? na("no volume data available")
+    : {
+        pass: avgVol20 >= VOL_MIN,
+        detail: `${volDaysUsed}D avg vol ${avgVol20>=1e6?(avgVol20/1e6).toFixed(1)+"M":(avgVol20/1000).toFixed(0)+"K"} — ${avgVol20 >= VOL_MIN ? "liquid ✓" : "below 100K"}`,
+        avgVol20,
+      };
 
   // ── Stop loss: 7-8% below pivot (Minervini's standard initial stop) ───────────
   const stopLoss = pivot ? r2(pivot * 0.925) : null;  // 7.5% below pivot
@@ -243,21 +333,26 @@ function scoreSEPA(d) {
 
   // ── Final verdict ─────────────────────────────────────────────────────────────
   // Minervini: BUY_READY requires SEPA criteria + must be IN buy zone (not extended)
-  const sepaScore = Object.values(c).filter((x) => x.pass).length; // out of 10 now
+  // Only score criteria that have data (exclude na ones from denominator too)
+  const scorable   = Object.values(c).filter((x) => !x.na);
+  const sepaScore  = scorable.filter((x) => x.pass).length;
+  const maxScore   = scorable.length; // may be < 10 for new listings
 
+  // Use ratio so stocks with fewer scorable criteria aren't auto-penalised
+  const ratio = maxScore > 0 ? sepaScore / maxScore : 0;
   const verdict =
-    sepaScore >= 8 && entryZone === "IN_BUY_ZONE"  ? "BUY_READY"     :
-    sepaScore >= 8 && entryZone === "EXTENDED"      ? "EXTENDED"      :
-    sepaScore >= 8 && entryZone === "NEAR_PIVOT"    ? "NEAR_PIVOT"    :
-    sepaScore >= 6                                  ? "WATCH"         :
-                                                      "AVOID";
+    ratio >= 0.8 && entryZone === "IN_BUY_ZONE"  ? "BUY_READY"  :
+    ratio >= 0.8 && entryZone === "EXTENDED"      ? "EXTENDED"   :
+    ratio >= 0.8 && entryZone === "NEAR_PIVOT"    ? "NEAR_PIVOT" :
+    ratio >= 0.6                                  ? "WATCH"      :
+                                                    "AVOID";
 
   const stage =
     c.C1.pass && c.C2.pass && c.C3.pass && c.C4.pass ? "Stage 2" :
     c.C1.pass && c.C2.pass                            ? "Stage 1" :
     p && ma200 && p < ma200 * 0.95                    ? "Stage 4" : "Stage 3";
 
-  return { criteria: c, sepaScore, verdict, stage, rsRating: rsProxy, entryZone, pivot, stopLoss, riskReward };
+  return { criteria: c, sepaScore, maxScore, verdict, stage, rsRating: rsProxy, entryZone, pivot, stopLoss, riskReward };
 }
 
 // ─── Claude: narrative notes ──────────────────────────────────────────────────
