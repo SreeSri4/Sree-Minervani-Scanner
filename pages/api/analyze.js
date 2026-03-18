@@ -140,7 +140,7 @@ async function fetchFundamentals(symbol) {
         const salesRaw  = display.NET_SALES        ?? []
         const salesGrow = display.NET_SALES_Growth ?? []
         revQ = salesRaw.slice(0, 4).map((val, i) => ({
-          date:    val?.Name   ?? `Q${i+1}`,
+          date:   val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
           revenue: r2(val?.Value),
           chg:     r2(salesGrow[i]?.Value),
         })).filter(q => q.revenue !== null).reverse()  // oldest → newest
@@ -162,6 +162,23 @@ async function fetchFundamentals(symbol) {
       console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
     }
   }
+  // ── Step 3: sector/industry from Yahoo (unchanged) ───────────────────────────
+  let industry = '', sector = ''
+  try {
+    const auth = await getYahooCrumb()
+    const url  = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`
+    const headers = { 'User-Agent': UA, Accept: 'application/json', Referer: 'https://finance.yahoo.com/', ...(auth?.cookie ? { Cookie: auth.cookie } : {}) }
+    const yr = await fetch(url, { headers, cache: 'no-store' })
+    if (yr.ok) {
+      const yj = await yr.json()
+      const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
+      industry = profile.industry ?? ''
+      sector   = profile.sector   ?? ''
+    }
+  } catch (_) {}
+ 
+  return { industry, sector, epsQ, revQ }
+}
 
 // Step 3: parse the Yahoo chart result into our data shape
 function parseYahooResult(result, symbol) {
