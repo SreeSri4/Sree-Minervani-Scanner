@@ -2,51 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ─── NSE price band fetcher ────────────────────────────────────────────────────
-let _bandCache = null;
-let _bandCacheTs = 0;
-
-async function getNsePriceBands() {
-  const now = Date.now();
-  if (_bandCache && now - _bandCacheTs < 60 * 60 * 1000) return _bandCache; // 1h cache
-
-  const url = "https://archives.nseindia.com/content/equities/sec_list.csv";
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`NSE sec_list.csv HTTP ${res.status}`);
-  const text = await res.text();
-
-  const lines = text.trim().split(/\r?\n/);
-  const [headerLine, ...rows] = lines;
-  const headers = headerLine.split(",").map((h) => h.trim());
-  const idxSymbol = headers.indexOf("SYMBOL");
-  const idxBand =
-    headers.indexOf("PRICE_BAND") !== -1
-      ? headers.indexOf("PRICE_BAND")
-      : headers.indexOf("PRICE BAND");
-
-  const map = {};
-  if (idxSymbol === -1 || idxBand === -1) {
-    _bandCache = map;
-    _bandCacheTs = now;
-    return map;
-  }
-
-  for (const row of rows) {
-    const cols = row.split(",");
-    const symbol = (cols[idxSymbol] || "").trim();
-    const bandRaw = (cols[idxBand] || "").trim(); // e.g. "2", "5", "10", "20"
-    if (!symbol || !bandRaw) continue;
-    const band = Number(bandRaw.replace("%", "").trim());
-    if (!Number.isNaN(band)) {
-      map[symbol] = band;
-    }
-  }
-
-  _bandCache = map;
-  _bandCacheTs = now;
-  return map;
-}
-
 // ─── Yahoo Finance fetcher — with crumb auth + retries + fallback hosts ─────────
 
 // Step 1: get a session cookie + crumb (Yahoo requires this for chart API)
@@ -151,6 +106,73 @@ async function fetchYahooData(symbol) {
 
   throw lastError || new Error(`Failed to fetch ${symbol} after ${MAX_RETRIES} attempts`);
 }
+// ─── Yahoo Finance fundamentals — industry, sector, quarterly EPS & revenue ──
+async function fetchFundamentals(symbol) {
+  const auth = await getYahooCrumb();
+  const modules = 'assetProfile,incomeStatementHistoryQuarterly,earningsHistory';
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
+
+  const headers = {
+    'User-Agent': UA,
+    Accept: 'application/json',
+    Referer: 'https://finance.yahoo.com/',
+    ...(auth?.cookie ? { Cookie: auth.cookie } : {}),
+  };
+
+  try {
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const result = json?.quoteSummary?.result?.[0];
+    if (!result) return null;
+
+    const profile  = result.assetProfile || {};
+    const epsHist  = result.earningsHistory?.history || [];
+    const incStmt  = result.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+
+    // Last 3 quarters EPS (actual)
+    const epsQ = epsHist
+      .slice(-4)   // Yahoo gives 4; we'll show last 3
+      .map(q => ({
+        date:   q.quarter?.fmt  || q.period || '',
+        actual: q.epsActual?.raw ?? null,
+        est:    q.epsEstimate?.raw ?? null,
+      }))
+      .filter(q => q.actual !== null)
+      .slice(-3)
+
+    // Last 3 quarters Total Revenue
+    const revQ = incStmt
+      .slice(0, 4)  // most recent first from Yahoo
+      .map(q => ({
+        date:    q.endDate?.fmt || '',
+        revenue: q.totalRevenue?.raw ?? null,
+      }))
+      .filter(q => q.revenue !== null)
+      .slice(0, 3)
+      .reverse()  // oldest → newest
+
+    // Compute QoQ % change for EPS and Revenue
+    function qoqChange(arr, key) {
+      return arr.map((q, i) => {
+        if (i === 0 || arr[i-1][key] == null || arr[i-1][key] === 0) return { ...q, chg: null }
+        const chg = ((q[key] - arr[i-1][key]) / Math.abs(arr[i-1][key])) * 100
+        return { ...q, chg: Math.round(chg * 10) / 10 }
+      })
+    }
+
+    return {
+      industry: profile.industry || '',
+      sector:   profile.sector   || '',
+      epsQ:     qoqChange(epsQ,  'actual'),
+      revQ:     qoqChange(revQ,  'revenue'),
+    }
+  } catch (e) {
+    return null;
+  }
+}
+
+
 
 // Step 3: parse the Yahoo chart result into our data shape
 function parseYahooResult(result, symbol) {
@@ -448,15 +470,22 @@ export default async function handler(req, res) {
 
   const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
-  // ── 1. Fetch Yahoo Finance data ───────────────────────────────────────────────
-  const fetchResults = await Promise.allSettled(
-    tickers.map((t) => fetchYahooData(`${t}.${exchange}`))
-  );
+  // ── 1. Fetch Yahoo Finance price data + fundamentals in parallel ─────────────
+  const [fetchResults, fundResults] = await Promise.all([
+    Promise.allSettled(tickers.map((t) => fetchYahooData(`${t}.${exchange}`))),
+    Promise.allSettled(tickers.map((t) => fetchFundamentals(`${t}.${exchange}`))),
+  ]);
 
   const goodData = [], errors = [];
   fetchResults.forEach((r, i) => {
     if (r.status === "fulfilled") goodData.push({ ticker: tickers[i], ...r.value });
     else errors.push({ ticker: tickers[i], error: r.reason?.message || "Unknown error" });
+  });
+
+  // Map fundamentals by ticker
+  const fundMap = {};
+  fundResults.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) fundMap[tickers[i]] = r.value;
   });
 
   if (goodData.length === 0)
@@ -472,11 +501,16 @@ export default async function handler(req, res) {
   const noteMap = Object.fromEntries(notes.map((n) => [n.ticker, n]));
 
   // ── 4. Final response ─────────────────────────────────────────────────────────
-  const stocks = scored.map((s) => ({
+  const stocks = scored.map((s) => {
+    const fund = fundMap[s.ticker] || {};
+    return {
     ticker:       s.ticker,
     yf_symbol:    `${s.ticker}.${exchange}`,
     company:      s.companyName,
-    sector:       s.sector,
+    sector:       fund.sector   || s.sector || '',
+    industry:     fund.industry || '',
+    eps_quarters: fund.epsQ     || [],
+    rev_quarters: fund.revQ     || [],
     price:        s.currentPrice,
     change_pct:   s.changePct,
     high_52w:     s.high52w,
@@ -501,7 +535,7 @@ export default async function handler(req, res) {
     data_source:  `Yahoo Finance · Real-time · ${today}`,
     data_points:  s.dataPoints,
     last_updated: s.lastUpdated,
-  }));
+  }});
 
   return res.status(200).json({
     stocks,
