@@ -127,7 +127,8 @@ async function fetchFundamentals(symbol) {
     console.log(`[SE search] ${bare} → HTTP ${sr.status}`)
     if (sr.ok) {
       const sj = await sr.json()
-      docId = sj?.data?.[0]?.DocId ?? null
+      const stock = sj?.Data?.find(d => d.EntityCode === 'se_security')
+      docId = stock?.DocId ?? null
       console.log(`[SE search] ${bare} → DocId: ${docId}`)
     } else {
       const txt = await sr.text()
