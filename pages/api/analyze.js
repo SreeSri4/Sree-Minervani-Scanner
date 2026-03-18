@@ -178,7 +178,7 @@ async function fetchFundamentals(symbol) {
   } catch (_) {}
  
   return { industry, sector, epsQ, revQ }
-}
+ }
 
 // Step 3: parse the Yahoo chart result into our data shape
 function parseYahooResult(result, symbol) {
