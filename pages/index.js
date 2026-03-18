@@ -355,6 +355,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             {s.stage==='Stage 2' && <span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
             {(s.rs_rating||0)>=70 && <span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
             <span className={`${styles.tag}`}>{bandBadge}</span>
+            <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
           </div>
           <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}</div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
@@ -431,6 +432,53 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
         <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{ width:`${((s.sepa_score/(s.max_score||10))*100).toFixed(0)}%`, background: sc }} /></div>
         <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/{s.max_score||10}</span>
       </div>
+
+ {/* Fundamentals — EPS & Revenue quarters */}
+      {(s.eps_quarters?.length > 0 || s.rev_quarters?.length > 0) && (
+        <div className={styles.fundPanel}>
+          <div className={styles.fundTitle}>Quarterly Financials</div>
+          <div className={styles.fundGrid}>
+            {/* EPS */}
+            {s.eps_quarters?.length > 0 && (
+              <div className={styles.fundBlock}>
+                <div className={styles.fundLabel}>EPS (Actual)</div>
+                <div className={styles.fundRow}>
+                  {s.eps_quarters.map((q, i) => (
+                    <div key={i} className={styles.fundCell}>
+                      <div className={styles.fundDate}>{q.date}</div>
+                      <div className={styles.fundVal}>{q.actual != null ? q.actual.toFixed(2) : '—'}</div>
+                      {q.chg != null && (
+                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
+                          {q.chg >= 0 ? '+' : ''}{q.chg}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Revenue */}
+            {s.rev_quarters?.length > 0 && (
+              <div className={styles.fundBlock}>
+                <div className={styles.fundLabel}>Total Revenue</div>
+                <div className={styles.fundRow}>
+                  {s.rev_quarters.map((q, i) => (
+                    <div key={i} className={styles.fundCell}>
+                      <div className={styles.fundDate}>{q.date}</div>
+                      <div className={styles.fundVal}>{q.revenue != null ? (q.revenue >= 1e9 ? (q.revenue/1e9).toFixed(1)+'B' : q.revenue >= 1e6 ? (q.revenue/1e6).toFixed(0)+'M' : (q.revenue/1e3).toFixed(0)+'K') : '—'}</div>
+                      {q.chg != null && (
+                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
+                          {q.chg >= 0 ? '+' : ''}{q.chg}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Criteria 2-col */}
       <div className={styles.checks}>
