@@ -464,7 +464,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
                   {s.rev_quarters.map((q, i) => (
                     <div key={i} className={styles.fundCell}>
                       <div className={styles.fundDate}>{q.date}</div>
-                      <div className={styles.fundVal}>{q.revenue != null ? (q.revenue >= 1e9 ? (q.revenue/1e9).toFixed(1)+'B' : q.revenue >= 1e6 ? (q.revenue/1e6).toFixed(0)+'M' : (q.revenue/1e3).toFixed(0)+'K') : '—'}</div>
+                      <div className={styles.fundVal}>{q.revenue != null ? q.revenue : '—'}</div>
                       {q.chg != null && (
                         <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
                           {q.chg >= 0 ? '+' : ''}{q.chg}%
