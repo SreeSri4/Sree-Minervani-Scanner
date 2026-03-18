@@ -440,7 +440,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             {/* EPS */}
             {s.eps_quarters?.length > 0 && (
               <div className={styles.fundBlock}>
-                <div className={styles.fundLabel}>Basic EPS</div>
+                <div className={styles.fundLabel}>EPS</div>
                 <div className={styles.fundRow}>
                   {s.eps_quarters.map((q, i) => (
                     <div key={i} className={styles.fundCell}>
@@ -459,7 +459,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             {/* Revenue */}
             {s.rev_quarters?.length > 0 && (
               <div className={styles.fundBlock}>
-                <div className={styles.fundLabel}>Total Revenue</div>
+                <div className={styles.fundLabel}>Sales</div>
                 <div className={styles.fundRow}>
                   {s.rev_quarters.map((q, i) => (
                     <div key={i} className={styles.fundCell}>
