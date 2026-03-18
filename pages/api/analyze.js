@@ -151,27 +151,25 @@ async function fetchFundamentals(symbol) {
  
         const r2 = n => n != null ? Math.round(Number(n) * 100) / 100 : null
  
-        // NET_SALES — last 4 quarters, index 0 = most recent
-        const salesRaw  = display.NET_SALES        ?? []
-        const salesGrow = display.NET_SALES_Growth ?? []
-        revQ = salesRaw.slice(0, 4).map((val, i) => ({
-          date:    val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
-          revenue: r2(val?.Value),
-          chg:     r2(salesGrow[i]?.Value),
-        })).filter(q => q.revenue !== null).reverse()  // oldest → newest
+        // DisplayData is a flat array, index 0 = most recent quarter
+        // Each item has: DateEndName, NET_SALES, NET_SALES_Growth, Adj_eps_abs, Adj_eps_abs_Growth
+        const rows = stmtJson?.DisplayData ?? []
  
-        // Adj_eps_abs — last 4 quarters
-        const epsRaw  = display.Adj_eps_abs        ?? []
-        const epsGrow = display.Adj_eps_abs_Growth ?? []
-        epsQ = epsRaw.slice(0, 4).map((val, i) => ({
-          date:   val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
-          actual: r2(val?.Value),
-          chg:    r2(epsGrow[i]?.Value),
-        })).filter(q => q.actual !== null).reverse()  // oldest → newest
+        // Take 4 rows (most recent first), reverse to oldest→newest, then slice last 3
+        // so all 3 displayed quarters have a QoQ % change value
+        const last4 = rows.slice(0, 4).reverse()  // oldest → newest
  
-        // Drop oldest so all 3 shown quarters have a QoQ % change
-        if (revQ.length >= 4) revQ = revQ.slice(-3)
-        if (epsQ.length >= 4) epsQ = epsQ.slice(-3)
+        revQ = last4.map(q => ({
+          date:    q.DateEndName ?? '',
+          revenue: r2(q.NET_SALES),
+          chg:     r2(q.NET_SALES_Growth),
+        })).filter(q => q.revenue !== null).slice(-3)
+ 
+        epsQ = last4.map(q => ({
+          date:   q.DateEndName ?? '',
+          actual: r2(q.Adj_eps_abs),
+          chg:    r2(q.Adj_eps_abs_Growth),
+        })).filter(q => q.actual !== null).slice(-3)
       }
     } catch (e) {
       console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
