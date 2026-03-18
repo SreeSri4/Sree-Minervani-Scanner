@@ -109,7 +109,7 @@ async function fetchYahooData(symbol) {
 // ─── Yahoo Finance fundamentals — industry, sector, quarterly EPS & revenue ──
 async function fetchFundamentals(symbol) {
   const auth = await getYahooCrumb();
-  const modules = 'assetProfile,incomeStatementHistoryQuarterly,earningsHistory';
+  const modules = 'assetProfile,incomeStatementHistoryQuarterly';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
 
   const headers = {
@@ -135,8 +135,7 @@ async function fetchFundamentals(symbol) {
       .slice(-4)   // Yahoo gives 4; we'll show last 3
       .map(q => ({
         date:   q.quarter?.fmt  || q.period || '',
-        actual: q.epsActual?.raw ?? null,
-        est:    q.epsEstimate?.raw ?? null,
+        actual: q.basicEps?.raw ?? null,
       }))
       .filter(q => q.actual !== null)
       .slice(-3)
