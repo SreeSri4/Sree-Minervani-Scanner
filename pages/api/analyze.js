@@ -112,16 +112,29 @@ async function fetchFundamentals(symbol) {
   const bare = symbol.replace(/\.(NS|BO)$/i, '')
  
   // ── Step 1: search StockEdge to get DocId ────────────────────────────────────
+  const SE_HEADERS = {
+    'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept':          'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Origin':          'https://web.stockedge.com',
+    'Referer':         'https://web.stockedge.com/',
+  }
+ 
   let docId = null
   try {
     const searchUrl = `https://api.stockedge.com/Api/UniversalSearchApi/GetQuickSearchResult?searchTerm=${encodeURIComponent(bare)}&lang=en`
-    const sr = await fetch(searchUrl, { headers: { 'User-Agent': UA }, cache: 'no-store' })
+    const sr = await fetch(searchUrl, { headers: SE_HEADERS, cache: 'no-store' })
+    console.log(`[SE search] ${bare} → HTTP ${sr.status}`)
     if (sr.ok) {
       const sj = await sr.json()
       docId = sj?.data?.[0]?.DocId ?? null
+      console.log(`[SE search] ${bare} → DocId: ${docId}`)
+    } else {
+      const txt = await sr.text()
+      console.warn(`[SE search] ${bare} failed: ${sr.status} — ${txt.slice(0, 200)}`)
     }
   } catch (e) {
-    console.warn(`[fundamentals] StockEdge search failed for ${bare}:`, e.message)
+    console.warn(`[SE search] ${bare} exception:`, e.message)
   }
  
   // ── Step 2: fetch quarterly result statement ──────────────────────────────────
@@ -129,7 +142,8 @@ async function fetchFundamentals(symbol) {
   if (docId) {
     try {
       const stmtUrl = `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}/2/3?lang=en`
-      const stmtRes = await fetch(stmtUrl, { headers: { 'User-Agent': UA }, cache: 'no-store' })
+      const stmtRes = await fetch(stmtUrl, { headers: SE_HEADERS, cache: 'no-store' })
+      console.log(`[SE stmt] ${bare} DocId=${docId} → HTTP ${stmtRes.status}`)
       if (stmtRes.ok) {
         const stmtJson = await stmtRes.json()
         const display  = stmtJson?.DisplayData?.[0] ?? {}
@@ -140,7 +154,7 @@ async function fetchFundamentals(symbol) {
         const salesRaw  = display.NET_SALES        ?? []
         const salesGrow = display.NET_SALES_Growth ?? []
         revQ = salesRaw.slice(0, 4).map((val, i) => ({
-          date:   val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
+          date:    val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
           revenue: r2(val?.Value),
           chg:     r2(salesGrow[i]?.Value),
         })).filter(q => q.revenue !== null).reverse()  // oldest → newest
@@ -149,7 +163,7 @@ async function fetchFundamentals(symbol) {
         const epsRaw  = display.Adj_eps_abs        ?? []
         const epsGrow = display.Adj_eps_abs_Growth ?? []
         epsQ = epsRaw.slice(0, 4).map((val, i) => ({
-          date:   val?.Name  ?? `Q${i+1}`,
+          date:   val?.DateEndName ?? val?.Name ?? `Q${i+1}`,
           actual: r2(val?.Value),
           chg:    r2(epsGrow[i]?.Value),
         })).filter(q => q.actual !== null).reverse()  // oldest → newest
@@ -162,6 +176,7 @@ async function fetchFundamentals(symbol) {
       console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
     }
   }
+ 
   // ── Step 3: sector/industry from Yahoo (unchanged) ───────────────────────────
   let industry = '', sector = ''
   try {
@@ -178,7 +193,7 @@ async function fetchFundamentals(symbol) {
   } catch (_) {}
  
   return { industry, sector, epsQ, revQ }
- }
+}
 
 // Step 3: parse the Yahoo chart result into our data shape
 function parseYahooResult(result, symbol) {
