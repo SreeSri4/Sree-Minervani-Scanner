@@ -357,7 +357,6 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             <span className={`${styles.tag}`}>{bandBadge}</span>
             <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
           </div>
-          <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}</div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
           {s.data_points < 200 && <span className={styles.newListingBadge}>⚡ {s.data_points}d history — new listing</span>}
         </div>
