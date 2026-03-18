@@ -109,7 +109,8 @@ async function fetchYahooData(symbol) {
 // ─── Yahoo Finance fundamentals — industry, sector, quarterly EPS & revenue ──
 async function fetchFundamentals(symbol) {
   const auth = await getYahooCrumb();
-  const modules = 'assetProfile,incomeStatementHistoryQuarterly';
+  // Also request financialsQuarterly as a fallback for Indian stocks
+  const modules = 'assetProfile,incomeStatementHistoryQuarterly,earningsHistory';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
  
   const headers = {
@@ -121,38 +122,40 @@ async function fetchFundamentals(symbol) {
  
   try {
     const res = await fetch(url, { headers, cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) { console.warn(`[fundamentals] HTTP ${res.status} for ${symbol}`); return null; }
     const json = await res.json();
     const result = json?.quoteSummary?.result?.[0];
-    if (!result) return null;
+    if (!result) { console.warn(`[fundamentals] No result for ${symbol}`, json?.quoteSummary?.error); return null; }
  
     const profile  = result.assetProfile || {};
     const incStmt  = result.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const epsHist  = result.earningsHistory?.history || [];
  
-    // Last 3 quarters Basic EPS — from income statement (most recent first, so reverse)
-    // Fetch 4 quarters so we can compute QoQ for all 3 displayed quarters
-    // Yahoo returns most-recent first, so reverse → oldest first, then compute changes
-    function buildQuarters(rows, dateKey, valKey) {
-      const mapped = rows
-        .slice(0, 4)
-        .map(q => ({ date: q[dateKey]?.fmt || '', val: q[valKey]?.raw ?? null }))
-        .filter(q => q.val !== null)
-        .reverse()  // oldest → newest (4 items)
-      // compute QoQ change across all 4
-      const withChg = mapped.map((q, i) => {
-        if (i === 0 || mapped[i-1].val == null || mapped[i-1].val === 0) return { ...q, chg: null }
-        const chg = ((q.val - mapped[i-1].val) / Math.abs(mapped[i-1].val)) * 100
+    // Helper: takes an already-sorted oldest→newest array, computes QoQ change,
+    // drops the oldest entry (no prior to compare), returns last 3
+    function withQoQ(arr, key) {
+      if (arr.length < 2) return arr.slice(-3)
+      const out = arr.map((q, i) => {
+        if (i === 0 || arr[i-1][key] == null || arr[i-1][key] === 0) return { ...q, chg: null }
+        const chg = ((q[key] - arr[i-1][key]) / Math.abs(arr[i-1][key])) * 100
         return { ...q, chg: Math.round(chg * 10) / 10 }
       })
-      // drop oldest (it has no chg), return last 3 — all will have a chg value
-      return withChg.slice(-3)
+      return out.length >= 4 ? out.slice(-3) : out.slice(1)
     }
  
-    const epsQ = buildQuarters(incStmt, 'endDate', 'basicEps')
-      .map(q => ({ date: q.date, actual: q.val, chg: q.chg }))
+    // EPS — earningsHistory is already oldest→newest (-4q, -3q, -2q, -1q)
+    const epsRaw = epsHist
+      .filter(q => q.epsActual?.raw != null)
+      .map(q => ({ date: q.quarter?.fmt || q.period || '', actual: q.epsActual.raw }))
+    const epsQ = withQoQ(epsRaw, 'actual')
  
-    const revQ = buildQuarters(incStmt, 'endDate', 'totalRevenue')
-      .map(q => ({ date: q.date, revenue: q.val, chg: q.chg }))
+    // Revenue — incomeStatementHistoryQuarterly comes most-recent first, so reverse
+    const revRaw = incStmt
+      .slice(0, 5)
+      .map(q => ({ date: q.endDate?.fmt || '', revenue: q.totalRevenue?.raw ?? null }))
+      .filter(q => q.revenue !== null)
+      .reverse()  // oldest → newest
+    const revQ = withQoQ(revRaw, 'revenue')
  
     return {
       industry: profile.industry || '',
@@ -161,11 +164,10 @@ async function fetchFundamentals(symbol) {
       revQ,
     }
   } catch (e) {
+    console.error(`[fundamentals] Error for ${symbol}:`, e.message)
     return null;
   }
 }
-
-
 
 // Step 3: parse the Yahoo chart result into our data shape
 function parseYahooResult(result, symbol) {
