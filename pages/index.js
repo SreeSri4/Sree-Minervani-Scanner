@@ -177,7 +177,13 @@ export default function Home() {
                 <button className={`${styles.exchBtn} ${exchange==='BO'?styles.active:''}`} onClick={() => setExchange('BO')}>BSE (.BO)</button>
               </div>
             </div>
-
+            
+            <div className={styles.sideSection}>
+              <button className={styles.analyzeBtn} onClick={analyze} disabled={loading || tickers.length === 0}>
+                {loading ? <><span className={styles.btnSpinner} /> Fetching data...</> : <><SearchIcon /> Analyze {tickers.length > 0 ? `${tickers.length} Stock${tickers.length>1?'s':''}` : 'Stocks'}</>}
+              </button>
+            </div>
+                  
             <div className={styles.sideSection}>
               <div className={styles.sectionLabel}>Stock Symbols</div>
               <div className={styles.inputHint}>Type, paste comma-separated list, or use presets</div>
@@ -218,12 +224,6 @@ export default function Home() {
                   <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
                 ))}
               </div>
-            </div>
-
-            <div className={styles.sideSection}>
-              <button className={styles.analyzeBtn} onClick={analyze} disabled={loading || tickers.length === 0}>
-                {loading ? <><span className={styles.btnSpinner} /> Fetching data...</> : <><SearchIcon /> Analyze {tickers.length > 0 ? `${tickers.length} Stock${tickers.length>1?'s':''}` : 'Stocks'}</>}
-              </button>
             </div>
 
             <div className={styles.sideSection}>
