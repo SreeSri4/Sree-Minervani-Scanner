@@ -354,6 +354,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
             {s.stage==='Stage 2' && <span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
             {(s.rs_rating||0)>=70 && <span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
+            {bandBadge}
           </div>
           <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}</div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
