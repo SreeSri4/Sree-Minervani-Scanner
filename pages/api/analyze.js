@@ -111,60 +111,54 @@ async function fetchFundamentals(symbol) {
   const auth = await getYahooCrumb();
   const modules = 'assetProfile,incomeStatementHistoryQuarterly';
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
-
+ 
   const headers = {
     'User-Agent': UA,
     Accept: 'application/json',
     Referer: 'https://finance.yahoo.com/',
     ...(auth?.cookie ? { Cookie: auth.cookie } : {}),
   };
-
+ 
   try {
     const res = await fetch(url, { headers, cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return null;
-
+ 
     const profile  = result.assetProfile || {};
-    const epsHist  = result.earningsHistory?.history || [];
     const incStmt  = result.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
-
-    // Last 3 quarters EPS (actual)
-    const epsQ = epsHist
-      .slice(-4)   // Yahoo gives 4; we'll show last 3
-      .map(q => ({
-        date:   q.quarter?.fmt  || q.period || '',
-        actual: q.basicEps?.raw ?? null,
-      }))
-      .filter(q => q.actual !== null)
-      .slice(-3)
-
-    // Last 3 quarters Total Revenue
-    const revQ = incStmt
-      .slice(0, 4)  // most recent first from Yahoo
-      .map(q => ({
-        date:    q.endDate?.fmt || '',
-        revenue: q.totalRevenue?.raw ?? null,
-      }))
-      .filter(q => q.revenue !== null)
-      .slice(0, 3)
-      .reverse()  // oldest → newest
-
-    // Compute QoQ % change for EPS and Revenue
-    function qoqChange(arr, key) {
-      return arr.map((q, i) => {
-        if (i === 0 || arr[i-1][key] == null || arr[i-1][key] === 0) return { ...q, chg: null }
-        const chg = ((q[key] - arr[i-1][key]) / Math.abs(arr[i-1][key])) * 100
+ 
+    // Last 3 quarters Basic EPS — from income statement (most recent first, so reverse)
+    // Fetch 4 quarters so we can compute QoQ for all 3 displayed quarters
+    // Yahoo returns most-recent first, so reverse → oldest first, then compute changes
+    function buildQuarters(rows, dateKey, valKey) {
+      const mapped = rows
+        .slice(0, 4)
+        .map(q => ({ date: q[dateKey]?.fmt || '', val: q[valKey]?.raw ?? null }))
+        .filter(q => q.val !== null)
+        .reverse()  // oldest → newest (4 items)
+      // compute QoQ change across all 4
+      const withChg = mapped.map((q, i) => {
+        if (i === 0 || mapped[i-1].val == null || mapped[i-1].val === 0) return { ...q, chg: null }
+        const chg = ((q.val - mapped[i-1].val) / Math.abs(mapped[i-1].val)) * 100
         return { ...q, chg: Math.round(chg * 10) / 10 }
       })
+      // drop oldest (it has no chg), return last 3 — all will have a chg value
+      return withChg.slice(-3)
     }
-
+ 
+    const epsQ = buildQuarters(incStmt, 'endDate', 'basicEps')
+      .map(q => ({ date: q.date, actual: q.val, chg: q.chg }))
+ 
+    const revQ = buildQuarters(incStmt, 'endDate', 'totalRevenue')
+      .map(q => ({ date: q.date, revenue: q.val, chg: q.chg }))
+ 
     return {
       industry: profile.industry || '',
       sector:   profile.sector   || '',
-      epsQ:     qoqChange(epsQ,  'actual'),
-      revQ:     qoqChange(revQ,  'revenue'),
+      epsQ,
+      revQ,
     }
   } catch (e) {
     return null;
