@@ -227,7 +227,7 @@ export default function Home() {
             </div>
 
             <div className={styles.sideSection}>
-              <div className={styles.sectionLabel}>9 SEPA + Entry Filters</div>
+              <div className={styles.sectionLabel}>10 SEPA + Entry Filters</div>
               <div className={styles.criteriaList}>
                 {SEPA_CRITERIA.map((c, i) => (
                   <div key={i} className={`${styles.critItem} ${i === 8 ? styles.critHighlight : ''}`}>
