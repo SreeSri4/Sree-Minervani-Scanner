@@ -109,7 +109,7 @@ async function fetchYahooData(symbol) {
 // ─── Yahoo Finance fundamentals — industry, sector, quarterly EPS & revenue ──
 async function fetchFundamentals(symbol) {
   // Strip exchange suffix for StockEdge search (e.g. "RELIANCE.NS" → "RELIANCE")
-  const bare = symbol.replace(/\.(NS|BO)$/i, '')
+  let bare = symbol.replace(/\.(NS|BO)$/i, '')
 
     // ── Step 1: sector/industry from Yahoo (unchanged) ───────────────────────────
   let industry = '', sector = '', shortname = ''
