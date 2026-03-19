@@ -118,6 +118,7 @@ async function fetchFundamentals(symbol) {
     const url  = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,quoteType${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`
     const headers = { 'User-Agent': UA, Accept: 'application/json', Referer: 'https://finance.yahoo.com/', ...(auth?.cookie ? { Cookie: auth.cookie } : {}) }
     const yr = await fetch(url, { headers, cache: 'no-store' })
+    console.log(`[YR search] ${bare} → HTTP ${yr.status}`)
     if (yr.ok) {
       const yj = await yr.json()
       const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
