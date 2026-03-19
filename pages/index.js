@@ -343,7 +343,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
   const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
   // const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
   let tvsymbol = "NSE:" + s.yf_symbol.replace(/\.(NS|BO)$/i, '')
-  const yfu = `https://in.tradingview.com/chart/${tvsymbol}/`
+  const yfu = `https://in.tradingview.com/chart?symbol=${tvsymbol}/`
   const bandBadge = getBandBadge(priceBands, s.ticker, styles)
 
   return (
