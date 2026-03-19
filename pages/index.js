@@ -341,7 +341,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
   const sc    = ratio >= 0.8 ? 'var(--green)' : ratio >= 0.6 ? 'var(--amber)' : 'var(--red)'
   const pfl = s.low_52w  ? (((s.price - s.low_52w)  / s.low_52w)  * 100).toFixed(1) : null
   const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
-  const yfu = `https://finance.yahoo.com/quote/${s.yf_symbol}/`
+  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
   const bandBadge = getBandBadge(priceBands, s.ticker, styles)
 
   return (
@@ -357,7 +357,7 @@ function StockCard({ stock: s, exchange, delay, priceBands }) {
             <span className={`${styles.tag}`}>{bandBadge}</span>
             <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
           </div>
-          <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer" onClick={() => window.__yfWin && !window.__yfWin.closed ? (window.__yfWin.location.href = yfu, window.__yfWin.focus(), event.preventDefault()) : (window.__yfWin = window.open(yfu, 'yfChart'))}>↗ {s.yf_symbol}</a>
           {s.data_points < 200 && <span className={styles.newListingBadge}>⚡ {s.data_points}d history — new listing</span>}
         </div>
         <div className={styles.cardTopRight}>
