@@ -110,8 +110,25 @@ async function fetchYahooData(symbol) {
 async function fetchFundamentals(symbol) {
   // Strip exchange suffix for StockEdge search (e.g. "RELIANCE.NS" → "RELIANCE")
   const bare = symbol.replace(/\.(NS|BO)$/i, '')
- 
-  // ── Step 1: search StockEdge to get DocId ────────────────────────────────────
+
+    // ── Step 1: sector/industry from Yahoo (unchanged) ───────────────────────────
+  let industry = '', sector = '', shortname = ''
+  try {
+    const auth = await getYahooCrumb()
+    const url  = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,quoteType${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`
+    const headers = { 'User-Agent': UA, Accept: 'application/json', Referer: 'https://finance.yahoo.com/', ...(auth?.cookie ? { Cookie: auth.cookie } : {}) }
+    const yr = await fetch(url, { headers, cache: 'no-store' })
+    if (yr.ok) {
+      const yj = await yr.json()
+      const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
+      industry = profile.industry ?? ''
+      sector   = profile.sector   ?? ''
+      const quotetype = yj?.quoteSummary?.result?.[0]?.quoteType ?? {}
+      shortname = quotetype.shortName ?? ''
+    }
+  } catch (_) {}
+  
+  // ── Step 2: search StockEdge to get DocId ────────────────────────────────────
   const SE_HEADERS = {
     'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept':          'application/json, text/plain, */*',
@@ -121,6 +138,10 @@ async function fetchFundamentals(symbol) {
   }
  
   let docId = null
+  if (bare.length < 3) {
+    // Ensure shortName exists before assigning to avoid 'undefined'
+    bare = shortName || bare; 
+  }
   try {
     const searchUrl = `https://api.stockedge.com/Api/UniversalSearchApi/GetQuickSearchResult?searchTerm=${encodeURIComponent(bare)}&lang=en`
     const sr = await fetch(searchUrl, { headers: SE_HEADERS, cache: 'no-store' })
@@ -138,7 +159,7 @@ async function fetchFundamentals(symbol) {
     console.warn(`[SE search] ${bare} exception:`, e.message)
   }
  
-  // ── Step 2: fetch quarterly result statement ──────────────────────────────────
+  // ── Step 3: fetch quarterly result statement ──────────────────────────────────
   let epsQ = [], revQ = []
   if (docId) {
     try {
@@ -175,21 +196,6 @@ async function fetchFundamentals(symbol) {
       console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
     }
   }
- 
-  // ── Step 3: sector/industry from Yahoo (unchanged) ───────────────────────────
-  let industry = '', sector = ''
-  try {
-    const auth = await getYahooCrumb()
-    const url  = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile${auth?.crumb ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`
-    const headers = { 'User-Agent': UA, Accept: 'application/json', Referer: 'https://finance.yahoo.com/', ...(auth?.cookie ? { Cookie: auth.cookie } : {}) }
-    const yr = await fetch(url, { headers, cache: 'no-store' })
-    if (yr.ok) {
-      const yj = await yr.json()
-      const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
-      industry = profile.industry ?? ''
-      sector   = profile.sector   ?? ''
-    }
-  } catch (_) {}
  
   return { industry, sector, epsQ, revQ }
 }
