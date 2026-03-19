@@ -121,12 +121,12 @@ async function fetchFundamentals(symbol) {
     console.log(`[YR search] ${bare} → HTTP ${yr.status}`)
     if (yr.ok) {
       const yj = await yr.json()
-      console.log(`[YR Data] ${yj.quoteSummary.result[0].quoteType}`)
       const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
       industry = profile.industry ?? ''
       sector   = profile.sector   ?? ''
       const quotetype = yj?.quoteSummary?.result?.[0]?.quoteType ?? {}
       shortname = quotetype.shortName ?? ''
+      console.log(`[YR Data] ${shortname}`)
     }
   } catch (_) {}
   
@@ -142,7 +142,7 @@ async function fetchFundamentals(symbol) {
   let docId = null
   if (bare.length < 3) {
     // Ensure shortName exists before assigning to avoid 'undefined'
-    bare = shortName || bare; 
+    bare = shortname || bare; 
   }
   try {
     const searchUrl = `https://api.stockedge.com/Api/UniversalSearchApi/GetQuickSearchResult?searchTerm=${encodeURIComponent(bare)}&lang=en`
