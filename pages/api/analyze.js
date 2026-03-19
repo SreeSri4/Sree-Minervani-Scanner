@@ -121,6 +121,7 @@ async function fetchFundamentals(symbol) {
     console.log(`[YR search] ${bare} → HTTP ${yr.status}`)
     if (yr.ok) {
       const yj = await yr.json()
+      console.log(`[YR Data] $(yj)`)
       const profile = yj?.quoteSummary?.result?.[0]?.assetProfile ?? {}
       industry = profile.industry ?? ''
       sector   = profile.sector   ?? ''
