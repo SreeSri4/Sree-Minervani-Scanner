@@ -531,8 +531,6 @@ function ShortCard({ stock:s, exchange, delay }) {
         <div className={styles.finGrid}>
           <FI label="Sales QOQ%" val={pctFmt(s.sales_qoq)} cls={s.sales_qoq!=null&&s.sales_qoq<0?'neg':'pos'} prior={s.sales_prior_qoq!=null?`Prior: ${pctFmt(s.sales_prior_qoq)}`:null}/>
           <FI label="EPS QOQ%" val={pctFmt(s.eps_qoq)} cls={s.eps_qoq!=null&&s.eps_qoq<0?'neg':'pos'} prior={s.eps_prior_qoq!=null?`Prior: ${pctFmt(s.eps_prior_qoq)}`:null}/>
-          <FI label="Gross Margin" val={s.gross_margin!=null?s.gross_margin.toFixed(1)+'%':'—'} cls={s.gross_margin>20?'pos':'neg'}/>
-          <FI label="Op. Margin" val={s.op_margin!=null?s.op_margin.toFixed(1)+'%':'—'} cls={s.op_margin>0?'pos':'neg'}/>
         </div>
       </div>
  
