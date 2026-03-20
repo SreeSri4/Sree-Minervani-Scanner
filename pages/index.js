@@ -10,41 +10,65 @@ const PRESETS = {
   momentum: ['ADANIENT','SIEMENS','CUMMINSIND','ETERNAL','IRFC','DIXON','RVNL','BEL','HAL','COCHINSHIP'],
 }
 
-const CRIT_LABELS = {
-  C1:'Price > MA200 & MA150', C2:'MA150 > MA200',
-  C3:'MA200 trending up',     C4:'MA50 > MA150 & MA200',
-  C5:'≥25% above 52W low',    C6:'Within 25% of 52W high',
-  C7:'RS ≥ 70 vs Nifty 50',   C8:'VCP / tight base (<4% σ)',
-  C9:'Entry: within 5% of pivot',
+// ── Long criteria labels ────────────────────────────────────
+const LONG_LABELS = {
+  C1:'Price > MA200 & MA150', C2:'MA150 > MA200', C3:'MA200 trending up',
+  C4:'MA50 > MA150 & MA200',  C5:'≥25% above 52W low', C6:'Within 25% of 52W high',
+  C7:'RS ≥ 70 vs Nifty 50',   C8:'VCP tight base (<4% σ)', C9:'Entry within 5% of pivot',
+  C10:'Avg 20D volume ≥ 100K',
 }
-
-const SEPA_CRITERIA = [
-  'Price above 200-day & 150-day MA',
-  '150-day MA above 200-day MA',
-  '200-day MA trending up ≥ 1 month',
-  '50-day MA above 150-day & 200-day',
-  'Price ≥ 25% above 52-week low',
-  'Price within 25% of 52-week high',
-  'RS Rating ≥ 70 vs Nifty 50',
-  'VCP: base tightness < 4% σ',
-  'Entry within 0–5% of pivot (no chasing)',
-  'Avg 20-day volume ≥ 100,000 (liquidity)',
+const LONG_SEPA = [
+  'Price above 200-day & 150-day MA','150-day MA above 200-day MA',
+  '200-day MA trending up ≥ 1 month','50-day MA above 150-day & 200-day',
+  'Price ≥ 25% above 52-week low','Price within 25% of 52-week high',
+  'RS Rating ≥ 70 vs Nifty 50','VCP: base tightness < 4% σ',
+  'Entry within 0–5% of pivot (no chasing)','Avg 20-day volume ≥ 100,000',
 ]
 
-const ZONE_CONFIG = {
-  IN_BUY_ZONE:  { label: '✦ IN BUY ZONE',  cls: 'zoneBuy',     desc: '0–5% above pivot — ideal entry' },
-  NEAR_PIVOT:   { label: '◎ NEAR PIVOT',   cls: 'zoneNear',    desc: 'Within 3% below pivot — watch for breakout' },
-  EXTENDED:     { label: '⚠ EXTENDED',     cls: 'zoneExtended',desc: '>5% above pivot — do not chase' },
-  BELOW_PIVOT:  { label: '↓ BELOW PIVOT',  cls: 'zoneBelow',   desc: 'Not yet at breakout level' },
-  UNKNOWN:      { label: '? UNKNOWN',       cls: 'zoneUnknown', desc: 'Pivot data unavailable' },
+// ── Short criteria labels ───────────────────────────────────
+const SHORT_LABELS = {
+  S1:'Price < MA200 & MA150 (Stage 4)', S2:'MA150 < MA200 (bearish)',
+  S3:'MA200 trending down',             S4:'MA50 < MA150 & MA200 (bear stack)',
+  S5:'Within 30% of 52W low',           S6:'≥20% below 52W high (broken)',
+  S7:'Lower highs pattern',             S8:'Weakness RS ≥ 70',
+  S9:'Sales QOQ% declining',            S10:'EPS QOQ% declining',
 }
+const SHORT_CRITERIA_LIST = [
+  'Price below 200-day & 150-day MA (Stage 4)','MA150 below MA200 (bearish stack)',
+  'MA200 trending downward','MA50 < MA150 < MA200 (full bear stack)',
+  'Price within 30% of 52-week low','Price ≥20% below 52-week high',
+  'Lower highs price pattern confirmed','Weakness score ≥ 70 vs Nifty',
+  'Sales QOQ% declining or decelerating','EPS QOQ% declining or decelerating',
+]
 
-const VERDICT_CONFIG = {
-  BUY_READY:  { label: '✦ BUY READY',   cls: 'buy'      },
-  NEAR_PIVOT: { label: '◎ NEAR PIVOT',  cls: 'nearPiv'  },
-  EXTENDED:   { label: '⚠ EXTENDED',    cls: 'extended' },
-  WATCH:      { label: '◉ WATCH',       cls: 'watch'    },
-  AVOID:      { label: '✕ AVOID',       cls: 'avoid'    },
+// ── Zone/verdict configs ─────────────────────────────────────
+const LONG_VERDICT = {
+  BUY_READY:  { label:'✦ BUY READY',  cls:'buy'      },
+  NEAR_PIVOT: { label:'◎ NEAR PIVOT', cls:'nearPiv'  },
+  EXTENDED:   { label:'⚠ EXTENDED',   cls:'extended' },
+  WATCH:      { label:'◉ WATCH',      cls:'watch'    },
+  AVOID:      { label:'✕ AVOID',      cls:'avoid'    },
+}
+const LONG_ZONE = {
+  IN_BUY_ZONE: { label:'✦ IN BUY ZONE',  cls:'zoneBuy',     panel:'zoneBuyPanel',      desc:'0–5% above pivot — ideal entry' },
+  NEAR_PIVOT:  { label:'◎ NEAR PIVOT',   cls:'zoneNear',    panel:'zoneNearPanel',     desc:'Within 3% below pivot — watch' },
+  EXTENDED:    { label:'⚠ EXTENDED',     cls:'zoneExtended',panel:'zoneExtendedPanel', desc:'>5% above pivot — do not chase' },
+  BELOW_PIVOT: { label:'↓ BELOW PIVOT',  cls:'zoneBelow',   panel:'entryPanelDefault', desc:'Not at breakout level' },
+  UNKNOWN:     { label:'? UNKNOWN',      cls:'zoneUnknown', panel:'entryPanelDefault', desc:'Pivot data unavailable' },
+}
+const SHORT_VERDICT = {
+  SHORT_NOW:    { label:'▼ SHORT NOW',    cls:'shortNow'   },
+  NEAR_SHORT:   { label:'◎ NEAR SHORT',  cls:'nearShort'  },
+  WAIT_MA50:    { label:'⏳ WAIT MA50',   cls:'waitMa50'   },
+  WATCH_SHORT:  { label:'◉ WATCH SHORT', cls:'watchShort' },
+  AVOID_SHORT:  { label:'✕ AVOID',       cls:'avoid'      },
+}
+const SHORT_ZONE = {
+  AT_RESISTANCE:  { label:'▼ AT RESISTANCE', cls:'zoneShortNow',  panel:'zoneShortNowPanel',  desc:'Right at MA50 resistance — ideal short entry' },
+  APPROACHING:    { label:'↑ APPROACHING',   cls:'zoneApproach',  panel:'zoneApproachPanel',  desc:'Bouncing toward MA50, getting close' },
+  ABOVE_MA50:     { label:'⚠ ABOVE MA50',    cls:'zoneAboveMa50', panel:'zoneAboveMa50Panel', desc:'Above MA50 — wait for rejection first' },
+  DEEPLY_OVERSOLD:{ label:'↓ OVERSOLD',      cls:'zoneOversold',  panel:'entryPanelDefault',  desc:'Too far below MA50 — wait for bounce' },
+  UNKNOWN:        { label:'? UNKNOWN',        cls:'zoneUnknown',   panel:'entryPanelDefault',  desc:'Zone data unavailable' },
 }
 
 function inr(n) {
@@ -61,6 +85,7 @@ export default function Home() {
   const [tickers, setTickers]         = useState([])
   const [exchange, setExchange]       = useState('NS')
   const [input, setInput]             = useState('')
+  const [mode, setMode]               = useState('long')   // 'long' | 'short'
   const [loading, setLoading]         = useState(false)
   const [stocks, setStocks]           = useState(null)
   const [error, setError]             = useState('')
@@ -114,10 +139,11 @@ export default function Home() {
     if (!tickers.length) return
     setLoading(true); setError(''); setStocks(null); setFetchErrors([]); setActiveFilter('ALL')
     try {
+      const endpoint = '/api/analyze'
       const resp = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickers, exchange }),
+        body: JSON.stringify({ tickers, exchange, mode }),
       })
       const data = await resp.json()
       if (!resp.ok || data.error) throw new Error(data.error || 'Analysis failed')
@@ -127,20 +153,28 @@ export default function Home() {
     finally { setLoading(false) }
   }
 
-  const byVerdict = (v) => stocks?.filter(s => s.verdict === v) || []
-  const buyReady  = byVerdict('BUY_READY')
-  const nearPivot = byVerdict('NEAR_PIVOT')
-  const extended  = byVerdict('EXTENDED')
-  const watch     = byVerdict('WATCH')
-  const avoid     = byVerdict('AVOID')
-  const sorted    = [...buyReady, ...nearPivot, ...extended, ...watch, ...avoid]
-
-  const filtered = activeFilter === 'ALL'        ? sorted
-    : activeFilter === 'BUY_READY'               ? buyReady
-    : activeFilter === 'NEAR_PIVOT'              ? nearPivot
-    : activeFilter === 'EXTENDED'                ? extended
-    : activeFilter === 'WATCH'                   ? watch
-    : avoid
+// Filter groups depend on mode
+  const filterGroups = mode==='long' ? [
+    { key:'ALL',        label:'All',        count: stocks?.length||0,                       cls:'total' },
+    { key:'BUY_READY',  label:'Buy Ready',  count: stocks?.filter(s=>s.verdict==='BUY_READY').length||0,  cls:'buyPill' },
+    { key:'NEAR_PIVOT', label:'Near Pivot', count: stocks?.filter(s=>s.verdict==='NEAR_PIVOT').length||0, cls:'nearPivPill' },
+    { key:'EXTENDED',   label:'Extended',   count: stocks?.filter(s=>s.verdict==='EXTENDED').length||0,   cls:'extPill' },
+    { key:'WATCH',      label:'Watch',      count: stocks?.filter(s=>s.verdict==='WATCH').length||0,      cls:'watchPill' },
+    { key:'AVOID',      label:'Avoid',      count: stocks?.filter(s=>s.verdict==='AVOID').length||0,      cls:'avoidPill' },
+  ] : [
+    { key:'ALL',         label:'All',          count: stocks?.length||0,                                          cls:'total' },
+    { key:'SHORT_NOW',   label:'Short Now',    count: stocks?.filter(s=>s.verdict==='SHORT_NOW').length||0,    cls:'shortNowPill' },
+    { key:'NEAR_SHORT',  label:'Near Short',   count: stocks?.filter(s=>s.verdict==='NEAR_SHORT').length||0,   cls:'nearShortPill' },
+    { key:'WAIT_MA50',   label:'Wait MA50',    count: stocks?.filter(s=>s.verdict==='WAIT_MA50').length||0,    cls:'watchPill' },
+    { key:'WATCH_SHORT', label:'Watch Short',  count: stocks?.filter(s=>s.verdict==='WATCH_SHORT').length||0,  cls:'nearPivPill' },
+    { key:'AVOID_SHORT', label:'Avoid',        count: stocks?.filter(s=>s.verdict==='AVOID_SHORT').length||0, cls:'avoidPill' },
+  ]
+ 
+  const LONG_ORDER  = ['BUY_READY','NEAR_PIVOT','EXTENDED','WATCH','AVOID']
+  const SHORT_ORDER = ['SHORT_NOW','NEAR_SHORT','WAIT_MA50','WATCH_SHORT','AVOID_SHORT']
+  const order = mode==='long' ? LONG_ORDER : SHORT_ORDER
+  const sorted  = stocks ? [...stocks].sort((a,b) => order.indexOf(a.verdict)-order.indexOf(b.verdict)) : []
+  const filtered = activeFilter==='ALL' ? sorted : sorted.filter(s=>s.verdict===activeFilter)
 
   return (
     <>
@@ -158,13 +192,24 @@ export default function Home() {
             <div className={styles.logo}>🇮🇳</div>
             <div className={styles.titleBlock}>
               <h1>Minervini India SEPA Screener <span className={styles.badge}>NSE · BSE</span></h1>
-              <p>Yahoo Finance API · Pivot from real data · Entry zone filter · ₹ INR</p>
+              <p>Yahoo Finance API · Real OHLCV · Quarterly Financials · ₹ INR</p>
             </div>
           </div>
+          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            {/* Mode toggle */}
+            <div className={styles.modeToggle}>
+              <button className={`${styles.modeBtn} ${mode==='long'?styles.modeLong:''}`} onClick={()=>{setMode('long');setStocks(null);setActiveFilter('ALL')}}>
+                ▲ Long Scanner
+              </button>
+              <button className={`${styles.modeBtn} ${mode==='short'?styles.modeShort:''}`} onClick={()=>{setMode('short');setStocks(null);setActiveFilter('ALL')}}>
+                ▼ Short Scanner
+              </button>
+            </div>
           <button className={styles.themeBtn} onClick={() => setTheme(t => t==='dark'?'light':'dark')}>
             {theme==='dark' ? <SunIcon /> : <MoonIcon />}
             {theme==='dark' ? 'Light' : 'Dark'}
           </button>
+          </div>
         </header>
 
         <div className={styles.bodyWrap}>
@@ -179,8 +224,10 @@ export default function Home() {
             </div>
             
             <div className={styles.sideSection}>
-              <button className={styles.analyzeBtn} onClick={analyze} disabled={loading || tickers.length === 0}>
-                {loading ? <><span className={styles.btnSpinner} /> Fetching data...</> : <><SearchIcon /> Analyze {tickers.length > 0 ? `${tickers.length} Stock${tickers.length>1?'s':''}` : 'Stocks'}</>}
+              <button className={styles.analyzeBtn} onClick={analyze} disabled={loading||tickers.length===0}
+                style={{background: mode==='short' ? 'linear-gradient(135deg,#ff5c5c,#ff9933)' : undefined}}>
+                {loading ? <><span className={styles.btnSpinner}/> Fetching data...</>
+                  : <>{mode==='long'?<ArrowUpIcon/>:<ArrowDownIcon/>} {mode==='long'?'Long':'Short'} Scan {tickers.length>0?`${tickers.length} Stock${tickers.length>1?'s':''}`:'Stocks'}</>}
               </button>
             </div>
                   
@@ -227,28 +274,41 @@ export default function Home() {
             </div>
 
             <div className={styles.sideSection}>
-              <div className={styles.sectionLabel}>10 SEPA + Entry Filters</div>
+              <div className={styles.sectionLabel}>{mode==='long'?'10 SEPA + Entry Filters':'10 Short Criteria'}</div>
               <div className={styles.criteriaList}>
-                {SEPA_CRITERIA.map((c, i) => (
-                  <div key={i} className={`${styles.critItem} ${i === 8 ? styles.critHighlight : ''}`}>
-                    <div className={styles.critDot} />
+                {(mode==='long'?LONG_SEPA:SHORT_CRITERIA_LIST).map((c,i)=>(
+                  <div key={i} className={`${styles.critItem} ${i>=8?styles.critHighlight:''}`}>
+                    <div className={styles.critDot} style={{background: mode==='short'?'var(--red)':undefined}}/>
                     <span>{c}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className={styles.sideSection}>
-              <div className={styles.sectionLabel}>Entry Zone Guide</div>
-              <div className={styles.zoneGuide}>
-                {Object.values(ZONE_CONFIG).filter(z => z.cls !== 'zoneUnknown').map(z => (
-                  <div key={z.cls} className={styles.zoneGuideItem}>
-                    <span className={`${styles.zoneDot} ${styles[z.cls]}`} />
-                    <span className={styles.zoneGuideText}><strong>{z.label.replace(/[✦◎⚠↓?]\s/,'')}</strong> — {z.desc}</span>
-                  </div>
-                ))}
+            {mode==='short' && (
+              <div className={styles.sideSection}>
+                <div className={styles.sectionLabel}>Short Entry Guide</div>
+                <div className={styles.zoneGuide}>
+                  <div className={styles.zoneGuideItem}><span className={styles.zoneDot} style={{background:'var(--red)'}}/><span className={styles.zoneGuideText}><strong>AT RESISTANCE</strong> — Price at MA50 from below, ideal short</span></div>
+                  <div className={styles.zoneGuideItem}><span className={styles.zoneDot} style={{background:'var(--amber)'}}/><span className={styles.zoneGuideText}><strong>APPROACHING</strong> — Bouncing up toward MA50, get ready</span></div>
+                  <div className={styles.zoneGuideItem}><span className={styles.zoneDot} style={{background:'var(--text3)'}}/><span className={styles.zoneGuideText}><strong>WAIT MA50</strong> — Already above MA50, wait for rejection</span></div>
+                  <div className={styles.zoneGuideItem}><span className={styles.zoneDot} style={{background:'var(--blue)'}}/><span className={styles.zoneGuideText}><strong>OVERSOLD</strong> — Too extended down, wait for dead-cat bounce</span></div>
+                </div>
               </div>
-            </div>
+            )}
+            {mode==='long' && (
+              <div className={styles.sideSection}>
+                <div className={styles.sectionLabel}>Entry Zone Guide</div>
+                <div className={styles.zoneGuide}>
+                  {Object.values(LONG_ZONE).filter(z=>z.cls!=='zoneUnknown').map(z=>(
+                    <div key={z.cls} className={styles.zoneGuideItem}>
+                      <span className={`${styles.zoneDot} ${styles[z.cls]}`}/>
+                      <span className={styles.zoneGuideText}><strong>{z.label.replace(/[✦◎⚠↓?]\s/,'')}</strong> — {z.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className={styles.sideDisclaimer}>
               ⚠ Educational only · Not SEBI advice<br />Verify before trading
@@ -259,9 +319,9 @@ export default function Home() {
           <main className={styles.resultsPanel}>
             {loading && (
               <div className={styles.loadingBox}>
-                <div className={styles.spinner} />
+                <div className={styles.spinner style={{borderTopColor: mode==='short'?'var(--red)':'var(--saffron)'}} />
                 <div className={styles.loadingText}>Fetching: {tickers.map(t=>`${t}.${exchange}`).join(', ')}</div>
-                <div className={styles.loadingSub}>1yr OHLCV · MAs · Pivot from real data · Entry zone scoring</div>
+                <div className={styles.loadingSub}>{mode==='long'?'1yr OHLCV · MAs · Pivot · Entry zone':'1yr OHLCV · MAs · Quarterly Financials · Short zone'}</div>
               </div>
             )}
 
@@ -282,31 +342,33 @@ export default function Home() {
               <>
                 <div className={styles.resultsHeader}>
                   <div className={styles.summaryBar}>
-                    <button onClick={() => setActiveFilter('ALL')} className={`${styles.sumPill} ${styles.total} ${activeFilter==='ALL'?styles.pillActive:''}`}><span className={styles.val}>{stocks.length}</span> All</button>
-                    <button onClick={() => setActiveFilter('BUY_READY')} className={`${styles.sumPill} ${styles.buyPill} ${activeFilter==='BUY_READY'?styles.pillActive:''}`}><span className={styles.val}>{buyReady.length}</span> Buy Ready</button>
-                    <button onClick={() => setActiveFilter('NEAR_PIVOT')} className={`${styles.sumPill} ${styles.nearPivPill} ${activeFilter==='NEAR_PIVOT'?styles.pillActive:''}`}><span className={styles.val}>{nearPivot.length}</span> Near Pivot</button>
-                    <button onClick={() => setActiveFilter('EXTENDED')} className={`${styles.sumPill} ${styles.extPill} ${activeFilter==='EXTENDED'?styles.pillActive:''}`}><span className={styles.val}>{extended.length}</span> Extended</button>
-                    <button onClick={() => setActiveFilter('WATCH')} className={`${styles.sumPill} ${styles.watchPill} ${activeFilter==='WATCH'?styles.pillActive:''}`}><span className={styles.val}>{watch.length}</span> Watch</button>
-                    <button onClick={() => setActiveFilter('AVOID')} className={`${styles.sumPill} ${styles.avoidPill} ${activeFilter==='AVOID'?styles.pillActive:''}`}><span className={styles.val}>{avoid.length}</span> Avoid</button>
+                    {filterGroups.map(fg=>(
+                      <button key={fg.key} onClick={()=>setActiveFilter(fg.key)}
+                        className={`${styles.sumPill} ${styles[fg.cls]||''} ${activeFilter===fg.key?styles.pillActive:''}`}>
+                        <span className={styles.val}>{fg.count}</span> {fg.label}
+                      </button>
+                    ))}
                   </div>
-                  <div className={styles.infoBar}><LiveDot /> Live · Yahoo Finance · {exchange==='NS'?'NSE':'BSE'} · 10 filters · Pivot from 15D high · Vol ≥ 100K · Stop −7.5%</div>
+                  <div className={styles.infoBar}>
+                    <LiveDot color={mode==='short'?'var(--red)':'var(--green)'}/>
+                    Live · Yahoo Finance · {exchange==='NS'?'NSE':'BSE'} · {mode==='long'?'Pivot from 15D high · Stop −7.5%':'Short stop +7% · Financials from YF'}
+                  </div>
                 </div>
-
                 <div className={styles.cardsGrid}>
-                  {filtered.map((s, i) => <StockCard key={s.ticker} stock={s} exchange={exchange} delay={i * 40} priceBands={priceBands} />)}
+                  {filtered.map((s,i)=>mode==='long'
+                    ? <LongCard key={s.ticker} stock={s} exchange={exchange} delay={i*40}/>
+                    : <ShortCard key={s.ticker} stock={s} exchange={exchange} delay={i*40}/>
+                  )}
                 </div>
-
-                {filtered.length === 0 && (
-                  <div className={styles.filterEmpty}>No stocks match <strong>{activeFilter.replace('_',' ')}</strong></div>
-                )}
+                {filtered.length===0 && <div className={styles.filterEmpty}>No stocks match <strong>{activeFilter.replace(/_/g,' ')}</strong></div>}
               </>
             )}
-
-            {!stocks && !loading && !error && (
+ 
+            {!stocks&&!loading&&!error && (
               <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>📊</div>
-                <div className={styles.emptyText}>Add stocks and hit Analyze</div>
-                <div className={styles.emptySub}>Prices, MAs & pivot from Yahoo Finance · Entry zone filter prevents chasing</div>
+                <div className={styles.emptyIcon}>{mode==='long'?'📈':'📉'}</div>
+                <div className={styles.emptyText}>{mode==='long'?'Find stocks ready to buy':'Find stocks ready to short'}</div>
+                <div className={styles.emptySub}>{mode==='long'?'10 Minervini SEPA filters + entry zone':'10 short criteria including Sales & EPS QOQ%'}</div>
               </div>
             )}
           </main>
@@ -331,176 +393,212 @@ function getBandBadge(bandsMap, ticker, styles) {
   return <span className={`${styles.priceBand} ${styles.bandGrey}`}>NB</span>
 }
 
-function StockCard({ stock: s, exchange, delay, priceBands }) {
-  const vc  = s.verdict==='BUY_READY' ? 'buyReady' : s.verdict==='NEAR_PIVOT' ? 'nearPivCard' : s.verdict==='EXTENDED' ? 'extCard' : s.verdict==='WATCH' ? 'watchCard' : 'avoidCard'
-  const vconf = VERDICT_CONFIG[s.verdict] || VERDICT_CONFIG['AVOID']
-  const zconf = ZONE_CONFIG[s.entry_zone] || ZONE_CONFIG['UNKNOWN']
-  const chg = parseFloat(s.change_pct) || 0
-  const maxSc = s.max_score || 10
-  const ratio = s.sepa_score / maxSc
-  const sc    = ratio >= 0.8 ? 'var(--green)' : ratio >= 0.6 ? 'var(--amber)' : 'var(--red)'
-  const pfl = s.low_52w  ? (((s.price - s.low_52w)  / s.low_52w)  * 100).toFixed(1) : null
-  const pfh = s.high_52w ? (((s.price - s.high_52w) / s.high_52w) * 100).toFixed(1) : null
-  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
-  // let tvsymbol = "NSE:" + s.yf_symbol.replace(/\.(NS|BO)$/i, '')
-  // const yfu = `https://in.tradingview.com/chart?symbol=${tvsymbol}`
-  const bandBadge = getBandBadge(priceBands, s.ticker, styles)
-
+/* ── Long Card ─────────────────────────────────────────────── */
+function LongCard({ stock:s, exchange, delay }) {
+  const vconf = LONG_VERDICT[s.verdict]||LONG_VERDICT['AVOID']
+  const zconf = LONG_ZONE[s.entry_zone]||LONG_ZONE['UNKNOWN']
+  const chg   = parseFloat(s.change_pct)||0
+  const maxSc = s.max_score||10
+  const ratio = s.sepa_score/maxSc
+  const sc    = ratio>=0.8?'var(--green)':ratio>=0.6?'var(--amber)':'var(--red)'
+  const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
+  const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
+  const vc    = s.verdict==='BUY_READY'?'buyReady':s.verdict==='NEAR_PIVOT'?'nearPivCard':s.verdict==='EXTENDED'?'extCard':s.verdict==='WATCH'?'watchCard':'avoidCard'
+ 
   return (
-    <div className={`${styles.stockCard} ${styles[vc]}`} style={{ animationDelay:`${delay}ms` }}>
-      {/* Header */}
+    <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
       <div className={styles.cardTop}>
         <div className={styles.cardTopLeft}>
-          <div className={styles.tSym}>
-            {s.ticker}
+          <div className={styles.tSym}>{s.ticker}
             <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
-            {s.stage==='Stage 2' && <span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
-            {(s.rs_rating||0)>=70 && <span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
-            <span className={`${styles.tag}`}>{bandBadge}</span>
-            <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
+            {s.stage==='Stage 2'&&<span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
+            {(s.rs_rating||0)>=70&&<span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
           </div>
-          <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer" onClick={() => window.__yfWin && !window.__yfWin.closed ? (window.__yfWin.location.href = yfu, window.__yfWin.focus(), event.preventDefault()) : (window.__yfWin = window.open(yfu, 'yfChart'))}>↗ {s.yf_symbol}</a>
-          {s.data_points < 200 && <span className={styles.newListingBadge}>⚡ {s.data_points}d history — new listing</span>}
+          <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
+          <a className={styles.tLink} href={`https://finance.yahoo.com/quote/${s.yf_symbol}/`} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          {s.data_points<200&&<span className={styles.newListingBadge}>⚡ {s.data_points}d history</span>}
         </div>
         <div className={styles.cardTopRight}>
           <div className={`${styles.vtag} ${styles[vconf.cls]}`}>{vconf.label}</div>
           <div className={`${styles.entryZoneBadge} ${styles[zconf.cls]}`}>{zconf.label}</div>
-          <div className={styles.sepaScoreBig} style={{ color: sc }}>{s.sepa_score}<span>/{s.max_score||10}</span></div>
+          <div className={styles.sepaScoreBig} style={{color:sc}}>{s.sepa_score}<span>/{maxSc}</span></div>
         </div>
       </div>
-
-      {/* Price grid */}
+ 
       <div className={styles.priceGrid}>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>CMP</div><div className={styles.priceValue}>{inr(s.price)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>1D Change</div><div className={`${styles.priceValue} ${chg>=0?styles.pos:styles.neg}`}>{chg>=0?'+':''}{chg.toFixed(2)}%</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>52W High</div><div className={styles.priceValue}>{inr(s.high_52w)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>52W Low</div><div className={styles.priceValue}>{inr(s.low_52w)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>vs 52W Low</div><div className={`${styles.priceValue} ${styles.pos}`}>{pfl?`+${pfl}%`:'—'}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>vs 52W High</div><div className={`${styles.priceValue} ${pfh&&parseFloat(pfh)>=-25?styles.pos:styles.neg}`}>{pfh?`${pfh}%`:'—'}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 50</div><div className={styles.priceValue}>{inr(s.ma50)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 150</div><div className={styles.priceValue}>{inr(s.ma150)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>MA 200</div><div className={styles.priceValue}>{inr(s.ma200)}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>Avg Vol 20D</div><div className={`${styles.priceValue} ${s.avg_vol20&&s.avg_vol20>=100000?styles.pos:styles.neg}`}>{s.avg_vol20 ? (s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K') : '—'}</div></div>
-        <div className={styles.priceBlock}><div className={styles.priceLabel}>ATR %</div><div className={styles.priceValue}>{s.atr_pct ? s.atr_pct.toFixed(1)+'%' : '—'}</div></div>
-        <div style={{marginTop:'3px'}}>{bandBadge}</div>        
-      </div>
-
-      {/* Entry zone panel */}
-      <div className={`${styles.entryPanel} ${styles[zconf.cls+'Panel'] || styles.entryPanelDefault}`}>
-        <div className={styles.entryRow}>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>Pivot (15d high)</div>
-            <div className={styles.entryValue}>{inr(s.pivot)}</div>
-          </div>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>CMP vs Pivot</div>
-            <div className={`${styles.entryValue} ${s.pivot_pct!=null&&s.pivot_pct>5?styles.neg:s.pivot_pct!=null&&s.pivot_pct>=0?styles.pos:''}`}>
-              {s.pivot_pct != null ? pctFmt(s.pivot_pct) : '—'}
-            </div>
-          </div>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>Stop Loss (−7.5%)</div>
-            <div className={`${styles.entryValue} ${styles.neg}`}>{inr(s.stop_loss)}</div>
-          </div>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>Risk/Reward</div>
-            <div className={`${styles.entryValue} ${s.risk_reward!=null&&s.risk_reward>=2?styles.pos:styles.neg}`}>
-              {s.risk_reward != null ? s.risk_reward.toFixed(1)+'x' : '—'}
-            </div>
-          </div>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>Base Tightness</div>
-            <div className={`${styles.entryValue} ${s.base_tightness!=null&&s.base_tightness<4?styles.pos:styles.neg}`}>
-              {s.base_tightness != null ? s.base_tightness.toFixed(1)+'% σ' : '—'}
-            </div>
-          </div>
-          <div className={styles.entryItem}>
-            <div className={styles.entryLabel}>Zone</div>
-            <div className={`${styles.entryValue} ${styles[zconf.cls+'Text'] || ''}`}>{zconf.label.replace(/[✦◎⚠↓?]\s/,'')}</div>
+        <PB label="CMP" val={inr(s.price)}/>
+        <PB label="1D Change" val={pct(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
+        <PB label="52W High" val={inr(s.high_52w)}/>
+        <PB label="52W Low" val={inr(s.low_52w)}/>
+        <PB label="vs 52W Low" val={pfl?`+${pfl}%`:'—'} cls="pos"/>
+        <PB label="vs 52W High" val={pfh?`${pfh}%`:'—'} cls={pfh&&parseFloat(pfh)>=-25?'pos':'neg'}/>
+        <PB label="MA 50" val={inr(s.ma50)}/><PB label="MA 150" val={inr(s.ma150)}/>
+        <PB label="MA 200" val={inr(s.ma200)}/>
+        <PB label="Avg Vol 20D" val={s.avg_vol20?(s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K'):'—'} cls={s.avg_vol20>=100000?'pos':'neg'}/>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceLabel}>ATR % · Circuit</div>
+          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+            <span className={styles.priceValue}>{s.atr_pct?s.atr_pct.toFixed(1)+'%':'—'}</span>
+            {s.circuit_band&&<span className={`${styles.circuitBadge} ${styles[circuitClass(s.circuit_band)]}`}>{circuitLabel(s.circuit_band)}</span>}
           </div>
         </div>
-        {s.entry_zone === 'EXTENDED' && (
-          <div className={styles.extendedWarn}>⚠ CMP is {s.pivot_pct?.toFixed(1)}% above pivot — stock has already broken out. Wait for a new base to form before entering.</div>
-        )}
-        {s.entry_zone === 'IN_BUY_ZONE' && (
-          <div className={styles.buyZoneNote}>✦ Price is within the buy zone. Enter on strong volume (≥1.5× avg). Set stop at {inr(s.stop_loss)}.</div>
-        )}
       </div>
-
-      {/* Score bar */}
+ 
+      <div className={`${styles.entryPanel} ${styles[zconf.panel]}`}>
+        <div className={styles.entryRow}>
+          <EI label="Pivot (15D high)" val={inr(s.pivot)}/>
+          <EI label="CMP vs Pivot" val={pct(s.pivot_pct)} cls={s.pivot_pct!=null&&s.pivot_pct>5?'neg':s.pivot_pct!=null&&s.pivot_pct>=0?'pos':''}/>
+          <EI label="Stop Loss (−7.5%)" val={inr(s.stop_loss)} cls="neg"/>
+          <EI label="Risk/Reward" val={s.risk_reward!=null?s.risk_reward.toFixed(1)+'x':'—'} cls={s.risk_reward>=2?'pos':'neg'}/>
+          <EI label="Base Tightness" val={s.base_tightness!=null?s.base_tightness.toFixed(1)+'% σ':'—'} cls={s.base_tightness!=null&&s.base_tightness<4?'pos':'neg'}/>
+          <EI label="Zone" val={zconf.label.replace(/[✦◎⚠↓?]\s/,'')}/>
+        </div>
+        {s.entry_zone==='EXTENDED'&&<div className={styles.extendedWarn}>⚠ {(s.pivot_pct||0).toFixed(1)}% above pivot — already broke out. Do not chase. Wait for new base.</div>}
+        {s.entry_zone==='IN_BUY_ZONE'&&<div className={styles.buyZoneNote}>✦ In buy zone. Enter on strong volume (≥1.5× avg). Stop at {inr(s.stop_loss)}.</div>}
+      </div>
+ 
       <div className={styles.scoreRow}>
         <span className={styles.scoreLbl}>SEPA</span>
-        <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{ width:`${((s.sepa_score/(s.max_score||10))*100).toFixed(0)}%`, background: sc }} /></div>
-        <span className={styles.scoreVal} style={{ color: sc }}>{s.sepa_score}/{s.max_score||10}</span>
+        <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{width:`${(ratio*100).toFixed(0)}%`,background:sc}}/></div>
+        <span className={styles.scoreVal} style={{color:sc}}>{s.sepa_score}/{maxSc}</span>
       </div>
-
- {/* Fundamentals — EPS & Revenue quarters */}
-      {(s.eps_quarters?.length > 0 || s.rev_quarters?.length > 0) && (
-        <div className={styles.fundPanel}>
-          <div className={styles.fundTitle}>Quarterly Financials</div>
-          <div className={styles.fundGrid}>
-            {/* EPS */}
-            {s.eps_quarters?.length > 0 && (
-              <div className={styles.fundBlock}>
-                <div className={styles.fundLabel}>EPS</div>
-                <div className={styles.fundRow}>
-                  {s.eps_quarters.map((q, i) => (
-                    <div key={i} className={styles.fundCell}>
-                      <div className={styles.fundDate}>{q.date}</div>
-                      <div className={styles.fundVal}>{q.actual != null ? q.actual.toFixed(2) : '—'}</div>
-                      {q.chg != null && (
-                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
-                          {q.chg >= 0 ? '+' : ''}{q.chg}%
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Revenue */}
-            {s.rev_quarters?.length > 0 && (
-              <div className={styles.fundBlock}>
-                <div className={styles.fundLabel}>Sales</div>
-                <div className={styles.fundRow}>
-                  {s.rev_quarters.map((q, i) => (
-                    <div key={i} className={styles.fundCell}>
-                      <div className={styles.fundDate}>{q.date}</div>
-                      <div className={styles.fundVal}>{q.revenue != null ? q.revenue : '—'}</div>
-                      {q.chg != null && (
-                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
-                          {q.chg >= 0 ? '+' : ''}{q.chg}%
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Criteria 2-col */}
+ 
       <div className={styles.checks}>
-        {Object.entries(s.criteria||{}).map(([k, v]) => (
-          <div key={k} className={`${styles.chk} ${v.na?styles.chkNa:v.pass?styles.chkPass:styles.chkFail}`}>
+        {Object.entries(s.criteria||{}).map(([k,v])=>(
+          <div key={k} className={`${styles.chk} ${v.na?styles.chkNa:v.pass?'':styles.chkFail}`}>
             <div className={`${styles.chkIco} ${v.na?styles.naIco:v.pass?styles.pass:styles.fail}`}>{v.na?'—':v.pass?'✓':'✕'}</div>
             <div className={styles.chkContent}>
-              <span className={styles.chkLbl}>{CRIT_LABELS[k]||k}</span>
-              <span className={styles.chkDet}>{(v.detail||'').substring(0,36)}</span>
+              <span className={styles.chkLbl}>{LONG_LABELS[k]||k}</span>
+              <span className={styles.chkDet}>{(v.detail||'').substring(0,38)}</span>
             </div>
           </div>
         ))}
       </div>
-
-      {s.note && <div className={styles.noteBox}>📊 {s.note}</div>}
+      {s.note&&<div className={styles.noteBox}>📊 {s.note}</div>}
       <div className={styles.cardFooter}>{s.data_source}</div>
     </div>
   )
+}
+ 
+/* ── Short Card ────────────────────────────────────────────── */
+function ShortCard({ stock:s, exchange, delay }) {
+  const vconf = SHORT_VERDICT[s.verdict]||SHORT_VERDICT['AVOID_SHORT']
+  const zconf = SHORT_ZONE[s.short_zone]||SHORT_ZONE['UNKNOWN']
+  const chg   = parseFloat(s.change_pct)||0
+  const maxSc = s.max_score||10
+  const ratio = s.score/maxSc
+  const sc    = ratio>=0.8?'var(--red)':ratio>=0.6?'var(--amber)':'var(--text3)'
+  const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
+  const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
+  const vc    = s.verdict==='SHORT_NOW'?'shortNowCard':s.verdict==='NEAR_SHORT'?'nearShortCard':s.verdict==='WAIT_MA50'?'watchCard':s.verdict==='WATCH_SHORT'?'nearPivCard':'avoidCard'
+ 
+  return (
+    <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
+      <div className={styles.cardTop}>
+        <div className={styles.cardTopLeft}>
+          <div className={styles.tSym}>{s.ticker}
+            <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
+            {s.stage==='Stage 4'&&<span className={`${styles.tag} ${styles.tagStage4}`}>Stage 4</span>}
+            {s.lower_highs&&<span className={`${styles.tag} ${styles.tagBear}`}>↓ Lower Highs</span>}
+          </div>
+          <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
+          <a className={styles.tLink} href={`https://finance.yahoo.com/quote/${s.yf_symbol}/`} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          {s.data_points<200&&<span className={styles.newListingBadge}>⚡ {s.data_points}d history</span>}
+        </div>
+        <div className={styles.cardTopRight}>
+          <div className={`${styles.vtag} ${styles[vconf.cls]}`}>{vconf.label}</div>
+          <div className={`${styles.entryZoneBadge} ${styles[zconf.cls]}`}>{zconf.label}</div>
+          <div className={styles.sepaScoreBig} style={{color:sc}}>{s.score}<span>/{maxSc}</span></div>
+        </div>
+      </div>
+ 
+      {/* Price grid */}
+      <div className={styles.priceGrid}>
+        <PB label="CMP" val={inr(s.price)}/>
+        <PB label="1D Change" val={pct(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
+        <PB label="52W High" val={inr(s.high_52w)}/>
+        <PB label="52W Low" val={inr(s.low_52w)}/>
+        <PB label="vs 52W Low" val={pfl?`+${pfl}%`:'—'} cls={pfl&&parseFloat(pfl)<=30?'neg':''}/>
+        <PB label="vs 52W High" val={pfh?`${pfh}%`:'—'} cls={pfh&&parseFloat(pfh)<=-20?'neg':'pos'}/>
+        <PB label="MA 50" val={inr(s.ma50)}/><PB label="MA 200" val={inr(s.ma200)}/>
+        <PB label="Dist from MA50" val={s.dist_from_ma50!=null?pct(s.dist_from_ma50):'—'} cls={s.dist_from_ma50!=null&&Math.abs(s.dist_from_ma50)<=5?'neg':''}/>
+        <PB label="Avg Vol 20D" val={s.avg_vol20?(s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K'):'—'}/>
+      </div>
+ 
+      {/* Financials panel */}
+      <div className={styles.finPanel}>
+        <div className={styles.finTitle}>Quarterly Financials</div>
+        <div className={styles.finGrid}>
+          <FI label="Sales QOQ%" val={pct(s.sales_qoq)} cls={s.sales_qoq!=null&&s.sales_qoq<0?'neg':'pos'} prior={s.sales_prior_qoq!=null?`Prior: ${pct(s.sales_prior_qoq)}`:null}/>
+          <FI label="EPS QOQ%" val={pct(s.eps_qoq)} cls={s.eps_qoq!=null&&s.eps_qoq<0?'neg':'pos'} prior={s.eps_prior_qoq!=null?`Prior: ${pct(s.eps_prior_qoq)}`:null}/>
+          <FI label="Gross Margin" val={s.gross_margin!=null?s.gross_margin.toFixed(1)+'%':'—'} cls={s.gross_margin>20?'pos':'neg'}/>
+          <FI label="Op. Margin" val={s.op_margin!=null?s.op_margin.toFixed(1)+'%':'—'} cls={s.op_margin>0?'pos':'neg'}/>
+        </div>
+      </div>
+ 
+      {/* Short entry panel */}
+      <div className={`${styles.entryPanel} ${styles[zconf.panel]||styles.entryPanelDefault}`}>
+        <div className={styles.entryRow}>
+          <EI label="Short Entry" val={inr(s.short_entry)}/>
+          <EI label="Stop Loss (+7%)" val={inr(s.short_stop)} cls="neg"/>
+          <EI label="Target" val={inr(s.short_target)} cls="pos"/>
+          <EI label="Risk/Reward" val={s.short_rr!=null?s.short_rr.toFixed(1)+'x':'—'} cls={s.short_rr>=2?'pos':'neg'}/>
+          <EI label="ATR %" val={s.atr_pct?s.atr_pct.toFixed(1)+'%':'—'}/>
+          <EI label="Short Zone" val={zconf.label.replace(/[▼◎⏳↑↓⚠?]\s/,'')}/>
+        </div>
+        {s.short_zone==='AT_RESISTANCE'&&<div className={styles.buyZoneNote} style={{color:'var(--red)',background:'rgba(255,92,92,.08)',borderColor:'var(--red)'}}>▼ At MA50 resistance — ideal short. Stop {inr(s.short_stop)}, target {inr(s.short_target)}.</div>}
+        {s.short_zone==='DEEPLY_OVERSOLD'&&<div className={styles.extendedWarn}>↓ Too extended below MA50. Wait for dead-cat bounce to MA50 before shorting.</div>}
+      </div>
+ 
+      {/* Score bar */}
+      <div className={styles.scoreRow}>
+        <span className={styles.scoreLbl}>SHORT</span>
+        <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{width:`${(ratio*100).toFixed(0)}%`,background:sc}}/></div>
+        <span className={styles.scoreVal} style={{color:sc}}>{s.score}/{maxSc}</span>
+      </div>
+ 
+      {/* Criteria */}
+      <div className={styles.checks}>
+        {Object.entries(s.criteria||{}).map(([k,v])=>(
+          <div key={k} className={`${styles.chk} ${v.na?styles.chkNa:v.pass?'':styles.chkFail}`}>
+            <div className={`${styles.chkIco} ${v.na?styles.naIco:v.pass?styles.pass:styles.fail}`}>{v.na?'—':v.pass?'✓':'✕'}</div>
+            <div className={styles.chkContent}>
+              <span className={styles.chkLbl}>{SHORT_LABELS[k]||k}</span>
+              <span className={styles.chkDet}>{(v.detail||'').substring(0,38)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {s.note&&<div className={styles.noteBox}>📉 {s.note}</div>}
+      <div className={styles.cardFooter}>{s.data_source}</div>
+    </div>
+  )
+}
+ 
+/* ── Small helper components ───────────────────────────────── */
+function PB({ label, val, cls }) {
+  return <div className={styles.priceBlock}>
+    <div className={styles.priceLabel}>{label}</div>
+    <div className={`${styles.priceValue} ${cls?styles[cls]:''}`}>{val}</div>
+  </div>
+}
+function EI({ label, val, cls }) {
+  return <div className={styles.entryItem}>
+    <div className={styles.entryLabel}>{label}</div>
+    <div className={`${styles.entryValue} ${cls?styles[cls]:''}`}>{val}</div>
+  </div>
+}
+function FI({ label, val, cls, prior }) {
+  return <div className={styles.finItem}>
+    <div className={styles.finLabel}>{label}</div>
+    <div className={`${styles.finValue} ${cls?styles[cls]:''}`}>{val}</div>
+    {prior&&<div className={styles.finPrior}>{prior}</div>}
+  </div>
 }
 
 function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> }
 function SunIcon()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> }
 function MoonIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> }
-function LiveDot()    { return <span style={{display:'inline-block',width:7,height:7,borderRadius:'50%',background:'var(--green)',marginRight:5}} /> }
+function ArrowUpIcon()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg> }
+function ArrowDownIcon(){ return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg> }
+function LiveDot({color}){ return <span style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:color||'var(--green)',marginRight:5}}/> }
