@@ -198,8 +198,14 @@ async function fetchFundamentals(symbol) {
       console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
     }
   }
- 
-  return { industry, sector, epsQ, revQ }
+
+  // Also get QoQ values for short scoring (derived from revQ / epsQ)
+  const revenueQoQ      = revQ.length >= 2 ? revQ[revQ.length-1].chg : null
+  const revenuePriorQoQ = revQ.length >= 2 ? revQ[revQ.length-2].chg : null
+  const epsQoQ          = epsQ.length >= 2 ? epsQ[epsQ.length-1].chg : null
+  const epsPriorQoQ     = epsQ.length >= 2 ? epsQ[epsQ.length-2].chg : null
+  
+  return { industry, sector, epsQ, revQ, revenueQoQ, revenuePriorQoQ, epsQoQ, epsPriorQoQ }
 }
 
 // Step 3: parse the Yahoo chart result into our data shape
@@ -529,18 +535,25 @@ function scoreShort(d, fin) {
            shortStop, shortTarget, shortRR };
 }
 // ─── Claude: narrative notes ──────────────────────────────────────────────────
-async function generateNotes(scoredStocks) {
-  const input = scoredStocks.map((s) => ({
+async function generateNotes(scoredStocks, mode = "long") {
+  const input = scoredStocks.map((s) => mode === "long" ? ({
     ticker: s.ticker, company: s.companyName,
     price: s.currentPrice, verdict: s.verdict,
     entryZone: s.entryZone, pivot: s.pivot,
     stage: s.stage, sepaScore: s.sepaScore,
     stopLoss: s.stopLoss, riskReward: s.riskReward,
     baseTightness: s.baseTightness, atrPct: s.atrPct,
-    failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass).map(([k]) => k),
+    failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass && !v.na).map(([k]) => k),
+  })) : ({
+    ticker: s.ticker, price: s.currentPrice, verdict: s.verdict,
+    stage: s.stage, score: s.score, maxScore: s.maxScore,
+    shortZone: s.shortZone, distFromMa50: s.distFromMa50,
+    salesQoQ: s.financials?.revenueQoQ, epsQoQ: s.financials?.epsQoQ,
+    failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass && !v.na).map(([k]) => k),
   }));
 
-  const prompt = `You are a Mark Minervini-style trader analyzing Indian stocks.
+  const prompt = mode === "long" ? 
+    `You are a Mark Minervini-style trader analyzing Indian stocks.
 
 SEPA data is pre-calculated. Write a concise 1-2 sentence trade note per stock covering:
 - For EXTENDED stocks: warn clearly they have already broken out, do not chase
@@ -551,6 +564,14 @@ SEPA data is pre-calculated. Write a concise 1-2 sentence trade note per stock c
 Return ONLY a JSON array, no markdown:
 [{"ticker":"X","note":"..."}]
 
+Stocks: ${JSON.stringify(input, null, 2)}`
+: `You are a short-selling analyst. Short scores are pre-calculated.
+Write a concise 1-2 sentence SHORT TRADE note per stock.
+- AT_RESISTANCE: ideal short entry now at MA50
+- APPROACHING: get ready, bouncing toward MA50
+- WAIT_MA50: too early, wait for rejection
+- AVOID: not a short setup
+Return ONLY a JSON array, no markdown: [{"ticker":"X","note":"..."}]
 Stocks: ${JSON.stringify(input, null, 2)}`;
 
   const resp = await client.messages.create({
@@ -600,105 +621,105 @@ export default async function handler(req, res) {
   // ── 2. Score SEPA (pure JS math) ──────────────────────────────────────────────
   let scored;
   if (mode === "short") {
-    // Fetch financials in parallel — reuses the crumb already obtained above
-    const auth = await getYahooCrumb();
-    const finResults = await Promise.allSettled(
-      goodData.map(d => fetchFinancials(`${d.ticker}.${exchange}`, auth))
-    );
-    scored = goodData.map((d, i) => {
-      const fin = finResults[i].status === "fulfilled" ? finResults[i].value : null;
+    scored = goodData.map((d) => {
+      const fin = fundMap[d.ticker] || null;
       return { ...d, financials: fin, ...scoreShort(d, fin) };
     });
   } else {
-  const scored = goodData.map((s) => ({ ...s, ...scoreSEPA(s) }));
     scored = goodData.map((s) => ({ ...s, ...scoreSEPA(s) }));
   }
 
   // ── 3. Claude generates narrative notes ───────────────────────────────────────
   let notes = [];
-  try { notes = await generateNotes(scored); }
+  try { notes = await generateNotes(scored, mode); }
   catch (err) { console.warn("Notes failed:", err.message); }
   const noteMap = Object.fromEntries(notes.map((n) => [n.ticker, n]));
 
   // ── 4. Final response (shape differs by mode) ─────────────────────────────────────────────────────────
-  const stocks = scored.map((s) => mode === "short" ? ({
+  const stocks = scored.map((s) => {
     const fund = fundMap[s.ticker] || {};
-    ticker:         s.ticker,
-    yf_symbol:      `${s.ticker}.${exchange}`,
-    company:        s.companyName,
-    sector:         s.sector,
-    price:          s.currentPrice,
-    change_pct:     s.changePct,
-    high_52w:       s.high52w,
-    low_52w:        s.low52w,
-    ma50:           s.ma50,
-    ma150:          s.ma150,
-    ma200:          s.ma200,
-    avg_vol20:      s.avgVol20,
-    atr_pct:        s.atrPct,
-    dist_from_ma50: s.distFromMa50,
-    // Financials (fetched fresh for short mode)
-    sales_qoq:       s.financials?.revenueQoQ      ?? null,
-    sales_prior_qoq: s.financials?.revenuePriorQoQ ?? null,
-    eps_qoq:         s.financials?.epsQoQ           ?? null,
-    eps_prior_qoq:   s.financials?.epsPriorQoQ      ?? null,
-    gross_margin:    s.financials?.grossMargins      ?? null,
-    op_margin:       s.financials?.operatingMargins  ?? null,
+ 
+    if (mode === "short") {
+      return {
+        ticker:          s.ticker,
+        yf_symbol:       `${s.ticker}.${exchange}`,
+        company:         s.companyName,
+        sector:          fund.sector   || s.sector || "",
+        industry:        fund.industry || "",
+        price:           s.currentPrice,
+        change_pct:      s.changePct,
+        high_52w:        s.high52w,
+        low_52w:         s.low52w,
+        ma50:            s.ma50,
+        ma150:           s.ma150,
+        ma200:           s.ma200,
+        avg_vol20:       s.avgVol20,
+        atr_pct:         s.atrPct,
+        dist_from_ma50:  s.distFromMa50,
+        // Quarterly financials from StockEdge
+        eps_quarters:    fund.epsQ     || [],
+        rev_quarters:    fund.revQ     || [],
+        sales_qoq:       s.financials?.revenueQoQ      ?? null,
+        sales_prior_qoq: s.financials?.revenuePriorQoQ ?? null,
+        eps_qoq:         s.financials?.epsQoQ           ?? null,
+        eps_prior_qoq:   s.financials?.epsPriorQoQ      ?? null,
+        // Short scoring
+        criteria:        s.criteria,
+        score:           s.score,
+        max_score:       s.maxScore,
+        verdict:         s.verdict,
+        stage:           s.stage,
+        weak_rs:         s.weakRs,
+        short_zone:      s.shortZone,
+        short_entry:     s.currentPrice,
+        short_stop:      s.shortStop,
+        short_target:    s.shortTarget,
+        short_rr:        s.shortRR,
+        note:            noteMap[s.ticker]?.note ?? "",
+        data_source:     `Yahoo Finance + StockEdge · ${today}`,
+        data_points:     s.dataPoints,
+      };
+    }
+ 
     return {
-    // Short scoring
-    criteria:     s.criteria,
-    score:        s.score,
-    max_score:    s.maxScore,
-    verdict:      s.verdict,
-    stage:        s.stage,
-    weak_rs:      s.weakRs,
-    short_zone:   s.shortZone,
-    short_entry:  s.currentPrice,
-    short_stop:   s.shortStop,
-    short_target: s.shortTarget,
-    short_rr:     s.shortRR,
-    note:         noteMap[s.ticker]?.note ?? "",
-    data_source:  `Yahoo Finance · Real-time · ${today}`,
-    data_points:  s.dataPoints,
-  }) : ({
-    const fund = fundMap[s.ticker] || {};
-    return {
-    ticker:       s.ticker,
-    yf_symbol:    `${s.ticker}.${exchange}`,
-    company:      s.companyName,
-    sector:       fund.sector   || s.sector || '',
-    industry:     fund.industry || '',
-    eps_quarters: fund.epsQ     || [],
-    rev_quarters: fund.revQ     || [],
-    price:        s.currentPrice,
-    change_pct:   s.changePct,
-    high_52w:     s.high52w,
-    low_52w:      s.low52w,
-    ma50:         s.ma50,
-    ma150:        s.ma150,
-    ma200:        s.ma200,
-    rs_rating:    s.rsRating,
-    stage:        s.stage,
-    criteria:     s.criteria,
-    sepa_score:   s.sepaScore,
-    verdict:      s.verdict,
-    entry_zone:   s.entryZone,
-    pivot:        s.pivot,
-    pivot_pct:    s.criteria.C9?.pivotPct ?? null,
-    stop_loss:    s.stopLoss,
-    risk_reward:  s.riskReward,
-    base_tightness: s.baseTightness,
-    atr_pct:      s.atrPct,
-    avg_vol20:    s.avgVol20,
-    note:         noteMap[s.ticker]?.note ?? "",
-    data_source:  `Yahoo Finance · Real-time · ${today}`,
-    data_points:  s.dataPoints,
-    last_updated: s.lastUpdated,
-  }));
+      ticker:         s.ticker,
+      yf_symbol:      `${s.ticker}.${exchange}`,
+      company:        s.companyName,
+      sector:         fund.sector   || s.sector || "",
+      industry:       fund.industry || "",
+      eps_quarters:   fund.epsQ     || [],
+      rev_quarters:   fund.revQ     || [],
+      price:          s.currentPrice,
+      change_pct:     s.changePct,
+      high_52w:       s.high52w,
+      low_52w:        s.low52w,
+      ma50:           s.ma50,
+      ma150:          s.ma150,
+      ma200:          s.ma200,
+      rs_rating:      s.rsRating,
+      stage:          s.stage,
+      criteria:       s.criteria,
+      sepa_score:     s.sepaScore,
+      max_score:      s.maxScore,
+      verdict:        s.verdict,
+      entry_zone:     s.entryZone,
+      pivot:          s.pivot,
+      pivot_pct:      s.criteria.C9?.pivotPct ?? null,
+      stop_loss:      s.stopLoss,
+      risk_reward:    s.riskReward,
+      base_tightness: s.baseTightness,
+      atr_pct:        s.atrPct,
+      avg_vol20:      s.avgVol20,
+      note:           noteMap[s.ticker]?.note ?? "",
+      data_source:    `Yahoo Finance + StockEdge · ${today}`,
+      data_points:    s.dataPoints,
+      last_updated:   s.lastUpdated,
+    };
+  });
   return res.status(200).json({
     stocks,
     errors: errors.length ? errors : undefined,
-    meta: { fetched: goodData.length, failed: errors.length, exchange, ts: new Date().toISOString() },
+    meta: { fetched: goodData.length, failed: errors.length, exchange, mode, ts: new Date().toISOString() },
   });
 }
 
