@@ -199,10 +199,10 @@ export default function Home() {
             {/* Mode toggle */}
             <div className={styles.modeToggle}>
               <button className={`${styles.modeBtn} ${mode==='long'?styles.modeLong:''}`} onClick={()=>{setMode('long');setStocks(null);setActiveFilter('ALL')}}>
-                ▲ Long Scanner
+                ▲ Long
               </button>
               <button className={`${styles.modeBtn} ${mode==='short'?styles.modeShort:''}`} onClick={()=>{setMode('short');setStocks(null);setActiveFilter('ALL')}}>
-                ▼ Short Scanner
+                ▼ Short
               </button>
             </div>
           <button className={styles.themeBtn} onClick={() => setTheme(t => t==='dark'?'light':'dark')}>
@@ -427,7 +427,7 @@ function LongCard({ stock:s, exchange, delay }) {
  
       <div className={styles.priceGrid}>
         <PB label="CMP" val={inr(s.price)}/>
-        <PB label="1D Change" val={pct(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
+        <PB label="1D Change" val={pctFmt(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
         <PB label="52W High" val={inr(s.high_52w)}/>
         <PB label="52W Low" val={inr(s.low_52w)}/>
         <PB label="vs 52W Low" val={pfl?`+${pfl}%`:'—'} cls="pos"/>
@@ -447,7 +447,7 @@ function LongCard({ stock:s, exchange, delay }) {
       <div className={`${styles.entryPanel} ${styles[zconf.panel]}`}>
         <div className={styles.entryRow}>
           <EI label="Pivot (15D high)" val={inr(s.pivot)}/>
-          <EI label="CMP vs Pivot" val={pct(s.pivot_pct)} cls={s.pivot_pct!=null&&s.pivot_pct>5?'neg':s.pivot_pct!=null&&s.pivot_pct>=0?'pos':''}/>
+          <EI label="CMP vs Pivot" val={pctFmt(s.pivot_pct)} cls={s.pivot_pct!=null&&s.pivot_pct>5?'neg':s.pivot_pct!=null&&s.pivot_pct>=0?'pos':''}/>
           <EI label="Stop Loss (−7.5%)" val={inr(s.stop_loss)} cls="neg"/>
           <EI label="Risk/Reward" val={s.risk_reward!=null?s.risk_reward.toFixed(1)+'x':'—'} cls={s.risk_reward>=2?'pos':'neg'}/>
           <EI label="Base Tightness" val={s.base_tightness!=null?s.base_tightness.toFixed(1)+'% σ':'—'} cls={s.base_tightness!=null&&s.base_tightness<4?'pos':'neg'}/>
@@ -515,13 +515,13 @@ function ShortCard({ stock:s, exchange, delay }) {
       {/* Price grid */}
       <div className={styles.priceGrid}>
         <PB label="CMP" val={inr(s.price)}/>
-        <PB label="1D Change" val={pct(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
+        <PB label="1D Change" val={pctFmt(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
         <PB label="52W High" val={inr(s.high_52w)}/>
         <PB label="52W Low" val={inr(s.low_52w)}/>
         <PB label="vs 52W Low" val={pfl?`+${pfl}%`:'—'} cls={pfl&&parseFloat(pfl)<=30?'neg':''}/>
         <PB label="vs 52W High" val={pfh?`${pfh}%`:'—'} cls={pfh&&parseFloat(pfh)<=-20?'neg':'pos'}/>
         <PB label="MA 50" val={inr(s.ma50)}/><PB label="MA 200" val={inr(s.ma200)}/>
-        <PB label="Dist from MA50" val={s.dist_from_ma50!=null?pct(s.dist_from_ma50):'—'} cls={s.dist_from_ma50!=null&&Math.abs(s.dist_from_ma50)<=5?'neg':''}/>
+        <PB label="Dist from MA50" val={s.dist_from_ma50!=null?pctFmt(s.dist_from_ma50):'—'} cls={s.dist_from_ma50!=null&&Math.abs(s.dist_from_ma50)<=5?'neg':''}/>
         <PB label="Avg Vol 20D" val={s.avg_vol20?(s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K'):'—'}/>
       </div>
  
@@ -529,8 +529,8 @@ function ShortCard({ stock:s, exchange, delay }) {
       <div className={styles.finPanel}>
         <div className={styles.finTitle}>Quarterly Financials</div>
         <div className={styles.finGrid}>
-          <FI label="Sales QOQ%" val={pct(s.sales_qoq)} cls={s.sales_qoq!=null&&s.sales_qoq<0?'neg':'pos'} prior={s.sales_prior_qoq!=null?`Prior: ${pct(s.sales_prior_qoq)}`:null}/>
-          <FI label="EPS QOQ%" val={pct(s.eps_qoq)} cls={s.eps_qoq!=null&&s.eps_qoq<0?'neg':'pos'} prior={s.eps_prior_qoq!=null?`Prior: ${pct(s.eps_prior_qoq)}`:null}/>
+          <FI label="Sales QOQ%" val={pctFmt(s.sales_qoq)} cls={s.sales_qoq!=null&&s.sales_qoq<0?'neg':'pos'} prior={s.sales_prior_qoq!=null?`Prior: ${pctFmt(s.sales_prior_qoq)}`:null}/>
+          <FI label="EPS QOQ%" val={pctFmt(s.eps_qoq)} cls={s.eps_qoq!=null&&s.eps_qoq<0?'neg':'pos'} prior={s.eps_prior_qoq!=null?`Prior: ${pctFmt(s.eps_prior_qoq)}`:null}/>
           <FI label="Gross Margin" val={s.gross_margin!=null?s.gross_margin.toFixed(1)+'%':'—'} cls={s.gross_margin>20?'pos':'neg'}/>
           <FI label="Op. Margin" val={s.op_margin!=null?s.op_margin.toFixed(1)+'%':'—'} cls={s.op_margin>0?'pos':'neg'}/>
         </div>
