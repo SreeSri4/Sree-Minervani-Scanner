@@ -544,7 +544,7 @@ async function generateNotes(scoredStocks, mode = "long") {
     stopLoss: s.stopLoss, riskReward: s.riskReward,
     baseTightness: s.baseTightness, atrPct: s.atrPct,
     failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass && !v.na).map(([k]) => k),
-  })) : ({
+  }) : ({
     ticker: s.ticker, price: s.currentPrice, verdict: s.verdict,
     stage: s.stage, score: s.score, maxScore: s.maxScore,
     shortZone: s.shortZone, distFromMa50: s.distFromMa50,
