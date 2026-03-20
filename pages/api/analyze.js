@@ -425,7 +425,7 @@ function scoreSEPA(d) {
       };
 
   // ── Stop loss: 7-8% below pivot (Minervini's standard initial stop) ───────────
-  const stopLoss = pivot ? r2(pivot * 0.925) : null;  // 7.5% below pivot
+  const stopLoss = pivot ? r2(pivot * 0.97) : null;  // 3% below pivot
 
   // ── Risk/Reward: upside to 52W high vs downside to stop ──────────────────────
   const riskReward = (stopLoss && high52w && p)
@@ -514,7 +514,7 @@ function scoreShort(d, fin) {
     distFromMa50 >= -5    ? "AT_RESISTANCE"   :  // ★ ideal — right at MA50 from below
     distFromMa50 >= -15   ? "APPROACHING"     :  // bouncing up toward MA50
                             "DEEPLY_OVERSOLD"; // too far below — wait for bounce
-  const shortStop   = p ? r2(p * 1.07) : null;          // stop 7% above entry
+  const shortStop   = p ? r2(p * 1.03) : null;          // stop 3% above entry
   const shortTarget = low52w ?? (p ? r2(p * 0.80) : null); // target = 52W low or −20%
   const shortRR     = (shortStop && shortTarget && p && shortStop > p)
     ? r2((p - shortTarget) / (shortStop - p)) : null;
