@@ -449,7 +449,85 @@ function scoreSEPA(d) {
 
   return { criteria: c, sepaScore, maxScore, verdict, stage, rsRating: rsProxy, entryZone, pivot, stopLoss, riskReward };
 }
-
+// ─── Short scoring — reuses already-fetched chart data ───────────────────────
+function scoreShort(d, fin) {
+  const { currentPrice: p, ma50, ma150, ma200, high52w, low52w, ma200Trending,
+          avgVol20, dataPoints } = d;
+  const na = (reason) => ({ pass: false, na: true, detail: `N/A — ${reason}` });
+  const c = {};
+  // S1: Price BELOW MA200 AND MA150 (Stage 4)
+  c.S1 = (!ma200 || !ma150) ? na(`need 150+ days, have ${dataPoints}`)
+    : { pass: p < ma200 && p < ma150, detail: `₹${p} vs MA200 ₹${ma200} · MA150 ₹${ma150}` };
+  // S2: MA150 BELOW MA200 (bearish alignment)
+  c.S2 = (!ma150 || !ma200) ? na(`need 150+ days, have ${dataPoints}`)
+    : { pass: ma150 < ma200, detail: `MA150 ₹${ma150} ${ma150 < ma200 ? "<" : ">"} MA200 ₹${ma200}` };
+  // S3: MA200 trending DOWN
+  c.S3 = (ma200Trending === null) ? na(`need 222+ days, have ${dataPoints}`)
+    : { pass: ma200Trending === false, detail: ma200Trending === false ? "MA200 declining ✓" : "MA200 flat/rising" };
+  // S4: MA50 < MA150 AND MA50 < MA200 (full bear stack)
+  c.S4 = (!ma50 || !ma150 || !ma200) ? na(`need 200+ days, have ${dataPoints}`)
+    : { pass: ma50 < ma150 && ma50 < ma200, detail: `MA50 ₹${ma50} · MA150 ₹${ma150} · MA200 ₹${ma200}` };
+  // S5: Price within 30% of 52W low (staying depressed)
+  const pctAboveLow = low52w ? ((p - low52w) / low52w) * 100 : null;
+  c.S5 = { pass: pctAboveLow !== null && pctAboveLow <= 30,
+    detail: pctAboveLow !== null ? `+${pctAboveLow.toFixed(1)}% above 52W low ₹${low52w}` : "52W low unavailable" };
+  // S6: Price at least 20% below 52W high (hard breakdown)
+  const pctBelowHigh = high52w ? ((p - high52w) / high52w) * 100 : null;
+  c.S6 = { pass: pctBelowHigh !== null && pctBelowHigh <= -20,
+    detail: pctBelowHigh !== null ? `${pctBelowHigh.toFixed(1)}% from 52W high ₹${high52w}` : "52W high unavailable" };
+  // S7: Lower highs proxy — MA50 < MA200 and price < MA200 (structural)
+  const lowerHighsProxy = !!(ma50 && ma200 && ma50 < ma200 && p < ma200);
+  c.S7 = { pass: lowerHighsProxy,
+    detail: lowerHighsProxy ? "Bearish structure: price & MA50 below MA200 ✓" : "Structure not fully bearish" };
+  // S8: Weakness score (inverse of RS proxy)
+  const weakScore =
+    (c.S1.pass ? 20 : 0) + (c.S2.pass ? 15 : 0) + (c.S3.pass ? 15 : 0) + (c.S4.pass ? 15 : 0) +
+    (pctAboveLow  !== null ? Math.min(30 - pctAboveLow, 20) * 0.5 : 0) +
+    (pctBelowHigh !== null ? Math.min(Math.abs(pctBelowHigh), 40) * 0.4 : 0);
+  const weakRs = Math.min(99, Math.max(1, Math.round(weakScore)));
+  c.S8 = dataPoints < 30 ? na(`need 30+ days, have ${dataPoints}`)
+    : { pass: weakRs >= 70, detail: `Weakness score ~${weakRs}`, weakRs };
+  // S9: Sales QOQ% declining or decelerating (from financials)
+  const salesQoQ = fin?.revenueQoQ;
+  c.S9 = (salesQoQ == null) ? { pass: false, na: true, detail: "N/A — quarterly revenue unavailable" }
+    : { pass: salesQoQ < 0 || (fin?.revenuePriorQoQ != null && salesQoQ < fin.revenuePriorQoQ - 5),
+        detail: salesQoQ < 0 ? `Sales QOQ ${salesQoQ.toFixed(1)}% ▼ declining`
+          : `Sales QOQ +${salesQoQ.toFixed(1)}% (prior: ${fin?.revenuePriorQoQ?.toFixed(1) ?? "?"}%)` };
+  // S10: EPS QOQ% declining or decelerating (from financials)
+  const epsQoQ = fin?.epsQoQ;
+  c.S10 = (epsQoQ == null) ? { pass: false, na: true, detail: "N/A — quarterly EPS unavailable" }
+    : { pass: epsQoQ < 0 || (fin?.epsPriorQoQ != null && epsQoQ < fin.epsPriorQoQ - 10),
+        detail: epsQoQ < 0 ? `EPS QOQ ${epsQoQ.toFixed(1)}% ▼ declining`
+          : `EPS QOQ +${epsQoQ.toFixed(1)}% (prior: ${fin?.epsPriorQoQ?.toFixed(1) ?? "?"}%)` };
+  // ── Short entry zone ─────────────────────────────────────────────────────────
+  // Best short = dead-cat bounce right up to MA50 resistance
+  const distFromMa50 = ma50 && p ? ((p - ma50) / ma50) * 100 : null;
+  const shortZone =
+    distFromMa50 === null ? "UNKNOWN"         :
+    distFromMa50 >= 5     ? "ABOVE_MA50"      :  // crossed MA50 — wait for rejection
+    distFromMa50 >= -5    ? "AT_RESISTANCE"   :  // ★ ideal — right at MA50 from below
+    distFromMa50 >= -15   ? "APPROACHING"     :  // bouncing up toward MA50
+                            "DEEPLY_OVERSOLD"; // too far below — wait for bounce
+  const shortStop   = p ? r2(p * 1.07) : null;          // stop 7% above entry
+  const shortTarget = low52w ?? (p ? r2(p * 0.80) : null); // target = 52W low or −20%
+  const shortRR     = (shortStop && shortTarget && p && shortStop > p)
+    ? r2((p - shortTarget) / (shortStop - p)) : null;
+  const scorable = Object.values(c).filter(x => !x.na);
+  const score    = scorable.filter(x => x.pass).length;
+  const maxScore = scorable.length;
+  const ratio    = maxScore > 0 ? score / maxScore : 0;
+  const verdict =
+    ratio >= 0.8 && shortZone === "AT_RESISTANCE" ? "SHORT_NOW"   :
+    ratio >= 0.8 && shortZone === "APPROACHING"   ? "NEAR_SHORT"  :
+    ratio >= 0.8 && shortZone === "ABOVE_MA50"    ? "WAIT_MA50"   :
+    ratio >= 0.7                                  ? "WATCH_SHORT" :
+                                                    "AVOID_SHORT";
+  const stage = c.S1.pass && c.S2.pass && c.S3.pass ? "Stage 4"
+    : c.S1.pass ? "Stage 3/4" : "Not Stage 4";
+  return { criteria: c, score, maxScore, verdict, stage, weakRs,
+           shortZone, distFromMa50: distFromMa50 ? r2(distFromMa50) : null,
+           shortStop, shortTarget, shortRR };
+}
 // ─── Claude: narrative notes ──────────────────────────────────────────────────
 async function generateNotes(scoredStocks) {
   const input = scoredStocks.map((s) => ({
@@ -490,7 +568,7 @@ Stocks: ${JSON.stringify(input, null, 2)}`;
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { tickers, exchange } = req.body || {};
+  const { tickers, exchange, mode = "long" } = req.body || {};
   if (!Array.isArray(tickers) || tickers.length === 0)
     return res.status(400).json({ error: "No tickers provided" });
   if (tickers.length > 500)
@@ -520,7 +598,21 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Failed to fetch data from Yahoo Finance", details: errors });
 
   // ── 2. Score SEPA (pure JS math) ──────────────────────────────────────────────
+  let scored;
+  if (mode === "short") {
+    // Fetch financials in parallel — reuses the crumb already obtained above
+    const auth = await getYahooCrumb();
+    const finResults = await Promise.allSettled(
+      goodData.map(d => fetchFinancials(`${d.ticker}.${exchange}`, auth))
+    );
+    scored = goodData.map((d, i) => {
+      const fin = finResults[i].status === "fulfilled" ? finResults[i].value : null;
+      return { ...d, financials: fin, ...scoreShort(d, fin) };
+    });
+  } else {
   const scored = goodData.map((s) => ({ ...s, ...scoreSEPA(s) }));
+    scored = goodData.map((s) => ({ ...s, ...scoreSEPA(s) }));
+  }
 
   // ── 3. Claude generates narrative notes ───────────────────────────────────────
   let notes = [];
@@ -528,8 +620,47 @@ export default async function handler(req, res) {
   catch (err) { console.warn("Notes failed:", err.message); }
   const noteMap = Object.fromEntries(notes.map((n) => [n.ticker, n]));
 
-  // ── 4. Final response ─────────────────────────────────────────────────────────
-  const stocks = scored.map((s) => {
+  // ── 4. Final response (shape differs by mode) ─────────────────────────────────────────────────────────
+  const stocks = scored.map((s) => mode === "short" ? ({
+    const fund = fundMap[s.ticker] || {};
+    ticker:         s.ticker,
+    yf_symbol:      `${s.ticker}.${exchange}`,
+    company:        s.companyName,
+    sector:         s.sector,
+    price:          s.currentPrice,
+    change_pct:     s.changePct,
+    high_52w:       s.high52w,
+    low_52w:        s.low52w,
+    ma50:           s.ma50,
+    ma150:          s.ma150,
+    ma200:          s.ma200,
+    avg_vol20:      s.avgVol20,
+    atr_pct:        s.atrPct,
+    dist_from_ma50: s.distFromMa50,
+    // Financials (fetched fresh for short mode)
+    sales_qoq:       s.financials?.revenueQoQ      ?? null,
+    sales_prior_qoq: s.financials?.revenuePriorQoQ ?? null,
+    eps_qoq:         s.financials?.epsQoQ           ?? null,
+    eps_prior_qoq:   s.financials?.epsPriorQoQ      ?? null,
+    gross_margin:    s.financials?.grossMargins      ?? null,
+    op_margin:       s.financials?.operatingMargins  ?? null,
+    return {
+    // Short scoring
+    criteria:     s.criteria,
+    score:        s.score,
+    max_score:    s.maxScore,
+    verdict:      s.verdict,
+    stage:        s.stage,
+    weak_rs:      s.weakRs,
+    short_zone:   s.shortZone,
+    short_entry:  s.currentPrice,
+    short_stop:   s.shortStop,
+    short_target: s.shortTarget,
+    short_rr:     s.shortRR,
+    note:         noteMap[s.ticker]?.note ?? "",
+    data_source:  `Yahoo Finance · Real-time · ${today}`,
+    data_points:  s.dataPoints,
+  }) : ({
     const fund = fundMap[s.ticker] || {};
     return {
     ticker:       s.ticker,
@@ -563,8 +694,7 @@ export default async function handler(req, res) {
     data_source:  `Yahoo Finance · Real-time · ${today}`,
     data_points:  s.dataPoints,
     last_updated: s.lastUpdated,
-  }});
-
+  }));
   return res.status(200).json({
     stocks,
     errors: errors.length ? errors : undefined,
