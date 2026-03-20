@@ -319,7 +319,7 @@ export default function Home() {
           <main className={styles.resultsPanel}>
             {loading && (
               <div className={styles.loadingBox}>
-                <div className={styles.spinner style={{borderTopColor: mode==='short'?'var(--red)':'var(--saffron)'}} />
+                <div className={styles.spinner} style={{borderTopColor: mode==='short'?'var(--red)':'var(--saffron)'}} />
                 <div className={styles.loadingText}>Fetching: {tickers.map(t=>`${t}.${exchange}`).join(', ')}</div>
                 <div className={styles.loadingSub}>{mode==='long'?'1yr OHLCV · MAs · Pivot · Entry zone':'1yr OHLCV · MAs · Quarterly Financials · Short zone'}</div>
               </div>
