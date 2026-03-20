@@ -351,7 +351,7 @@ export default function Home() {
                   </div>
                   <div className={styles.infoBar}>
                     <LiveDot color={mode==='short'?'var(--red)':'var(--green)'}/>
-                    Live · Yahoo Finance · {exchange==='NS'?'NSE':'BSE'} · {mode==='long'?'Pivot from 15D high · Stop −7.5%':'Short stop +7% · Financials from YF'}
+                    Live · Yahoo Finance · {exchange==='NS'?'NSE':'BSE'} · {mode==='long'?'Pivot from 15D high · Stop −3%':'Short stop +3% · Financials from YF'}
                   </div>
                 </div>
                 <div className={styles.cardsGrid}>
@@ -448,7 +448,7 @@ function LongCard({ stock:s, exchange, delay }) {
         <div className={styles.entryRow}>
           <EI label="Pivot (15D high)" val={inr(s.pivot)}/>
           <EI label="CMP vs Pivot" val={pctFmt(s.pivot_pct)} cls={s.pivot_pct!=null&&s.pivot_pct>5?'neg':s.pivot_pct!=null&&s.pivot_pct>=0?'pos':''}/>
-          <EI label="Stop Loss (−7.5%)" val={inr(s.stop_loss)} cls="neg"/>
+          <EI label="Stop Loss (−3%)" val={inr(s.stop_loss)} cls="neg"/>
           <EI label="Risk/Reward" val={s.risk_reward!=null?s.risk_reward.toFixed(1)+'x':'—'} cls={s.risk_reward>=2?'pos':'neg'}/>
           <EI label="Base Tightness" val={s.base_tightness!=null?s.base_tightness.toFixed(1)+'% σ':'—'} cls={s.base_tightness!=null&&s.base_tightness<4?'pos':'neg'}/>
           <EI label="Zone" val={zconf.label.replace(/[✦◎⚠↓?]\s/,'')}/>
@@ -538,7 +538,7 @@ function ShortCard({ stock:s, exchange, delay }) {
       <div className={`${styles.entryPanel} ${styles[zconf.panel]||styles.entryPanelDefault}`}>
         <div className={styles.entryRow}>
           <EI label="Short Entry" val={inr(s.short_entry)}/>
-          <EI label="Stop Loss (+7%)" val={inr(s.short_stop)} cls="neg"/>
+          <EI label="Stop Loss (+3%)" val={inr(s.short_stop)} cls="neg"/>
           <EI label="Target" val={inr(s.short_target)} cls="pos"/>
           <EI label="Risk/Reward" val={s.short_rr!=null?s.short_rr.toFixed(1)+'x':'—'} cls={s.short_rr>=2?'pos':'neg'}/>
           <EI label="ATR %" val={s.atr_pct?s.atr_pct.toFixed(1)+'%':'—'}/>
