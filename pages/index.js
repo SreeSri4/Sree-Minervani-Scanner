@@ -390,7 +390,7 @@ export default function Home() {
                 </div>
                 <div className={styles.cardsGrid}>
                   {filtered.map((s,i)=>mode==='long'
-                    ? <LongCard key={s.ticker} stock={s} exchange={exchange} delay={i*40}/>
+                    ? <LongCard key={s.ticker} stock={s} exchange={exchange} delay={i*40} priceBands={priceBands} />
                     : <ShortCard key={s.ticker} stock={s} exchange={exchange} delay={i*40}/>
                   )}
                 </div>
@@ -428,7 +428,7 @@ function getBandBadge(bandsMap, ticker, styles) {
 }
 
 /* ── Long Card ─────────────────────────────────────────────── */
-function LongCard({ stock:s, exchange, delay }) {
+function LongCard({ stock:s, exchange, delay, priceBands }) {
   const vconf = LONG_VERDICT[s.verdict]||LONG_VERDICT['AVOID']
   const zconf = LONG_ZONE[s.entry_zone]||LONG_ZONE['UNKNOWN']
   const chg   = parseFloat(s.change_pct)||0
