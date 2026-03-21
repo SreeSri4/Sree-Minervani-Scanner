@@ -96,8 +96,10 @@ async function fetchYahooData(symbol) {
 
       const result = json?.chart?.result?.[0];
       if (!result) { lastError = new Error(`Empty response from ${host}`); continue; }
-
-      return parseYahooResult(result, symbol);
+      const url2 = `https://groww.in/v1/api/search/v3/query/global/st_query?entity_type=stocks&from=0&query=${encodeURIComponent(symbol)}&size=6&web=true`
+      const res1 = await fetch(url2);
+      const groww_id = res1?.content?[0]?.id
+      return parseYahooResult(result, symbol,groww_id);
 
     } catch (err) {
       lastError = err;
@@ -217,7 +219,7 @@ async function fetchFundamentals(symbol) {
 }
 
 // Step 3: parse the Yahoo chart result into our data shape
-function parseYahooResult(result, symbol) {
+function parseYahooResult(result, symbol,,groww_id) {
   const meta   = result.meta || {};
   const quotes = result.indicators?.quote?.[0] || {};
 
@@ -323,6 +325,7 @@ function parseYahooResult(result, symbol) {
     lastUpdated:   meta.regularMarketTime
       ? new Date(meta.regularMarketTime * 1000).toISOString()
       : new Date().toISOString(),
+    groww_id: groww_id,
   };
 } // end parseYahooResult
 
