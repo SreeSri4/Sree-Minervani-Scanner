@@ -98,8 +98,9 @@ async function fetchYahooData(symbol) {
       if (!result) { lastError = new Error(`Empty response from ${host}`); continue; }
       const url2 = `https://groww.in/v1/api/search/v3/query/global/st_query?entity_type=stocks&from=0&query=${encodeURIComponent(symbol)}&size=6&web=true`;
       const res1 = await fetch(url2);
-      const groww_id = res1?.content?[0];
-      return parseYahooResult(result, symbol,groww_id.id);
+      const data1 = await res1.json();
+      const groww_id = data1?.content?.[0]?.id;
+      return parseYahooResult(result, symbol,groww_id);
 
     } catch (err) {
       lastError = err;
