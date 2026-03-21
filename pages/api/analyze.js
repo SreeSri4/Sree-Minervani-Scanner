@@ -220,7 +220,7 @@ async function fetchFundamentals(symbol) {
 }
 
 // Step 3: parse the Yahoo chart result into our data shape
-function parseYahooResult(result, symbol,,groww_id) {
+function parseYahooResult(result, symbol,groww_id) {
   const meta   = result.meta || {};
   const quotes = result.indicators?.quote?.[0] || {};
 
