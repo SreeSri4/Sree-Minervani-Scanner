@@ -438,7 +438,8 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
   const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
   const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
   const vc    = s.verdict==='BUY_READY'?'buyReady':s.verdict==='NEAR_PIVOT'?'nearPivCard':s.verdict==='EXTENDED'?'extCard':s.verdict==='WATCH'?'watchCard':'avoidCard'
-  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  // const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  const yfu = `https://groww.in/charts/stocks/${s.groww_id}`
   const bandBadge = getBandBadge(priceBands, s.ticker, styles)
   
   return (
@@ -572,7 +573,8 @@ function ShortCard({ stock:s, exchange, delay }) {
   const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
   const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
   const vc    = s.verdict==='SHORT_NOW'?'shortNowCard':s.verdict==='NEAR_SHORT'?'nearShortCard':s.verdict==='WAIT_MA50'?'watchCard':s.verdict==='WATCH_SHORT'?'nearPivCard':'avoidCard'
-  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  // const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  const yfu = `https://groww.in/charts/stocks/${s.groww_id}`
   
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
