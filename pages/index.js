@@ -94,6 +94,8 @@ export default function Home() {
   const [theme, setTheme]             = useState('light')
   const [priceBands, setPriceBands]   = useState(null)
   const inputRef = useRef(null)
+  const [fnoStocks, setFnoStocks]     = useState([])
+  const [fnoLoading, setFnoLoading]   = useState(false)
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
 
@@ -114,6 +116,38 @@ export default function Home() {
     fetchPriceBands()
   }, [])
 
+  // Fetch F&O stocks list on mount
+  useEffect(() => {
+    async function fetchFno() {
+      try {
+        const resp = await fetch('/api/fno')
+        if (!resp.ok) return
+        const data = await resp.json()
+        if (data.symbols?.length) setFnoStocks(data.symbols)
+      } catch (e) {
+        console.warn('[fno] fetch failed:', e.message)
+      }
+    }
+    fetchFno()
+  }, [])
+  // Fetch F&O stock list from server-side API (cached 24h)
+  useEffect(() => {
+    async function fetchFno() {
+      setFnoLoading(true)
+      try {
+        const resp = await fetch('/api/fno')
+        if (!resp.ok) return
+        const data = await resp.json()
+        if (data.symbols?.length) setFnoStocks(data.symbols)
+      } catch (e) {
+        console.warn('[FnO] fetch failed:', e.message)
+      } finally {
+        setFnoLoading(false)
+      }
+    }
+    fetchFno()
+  }, [])
+
   function parseTickers(raw) {
     return raw.split(/[\s,;\n\t]+/).map(t => t.trim().toUpperCase().replace(/[^A-Z0-9&]/g, '')).filter(Boolean)
   }
@@ -132,7 +166,7 @@ export default function Home() {
 
   function handlePaste(e) { e.preventDefault(); addTicker(e.clipboardData.getData('text')) }
   function removeTicker(t) { setTickers(prev => prev.filter(x => x !== t)) }
-  function loadPreset(key) { setTickers([...PRESETS[key]]) }
+  function loadPreset(key) { if (key === 'fno') { setTickers([...fnoStocks]); return } setTickers([...PRESETS[key]]) }
   function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTicker() } }
 
   async function analyze() {
@@ -267,7 +301,7 @@ export default function Home() {
             <div className={styles.sideSection}>
               <div className={styles.sectionLabel}>Quick Presets</div>
               <div className={styles.presets}>
-                {[['nifty','Nifty 50'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
+                {[['nifty','Nifty 50'],['fno','Stock Futures'],['it','IT Sector'],['bank','Banking'],['smallcap','Small/Mid Cap'],['momentum','Momentum']].map(([k,l]) => (
                   <button key={k} className={styles.presetBtn} onClick={() => loadPreset(k)}>{l}</button>
                 ))}
               </div>
