@@ -690,6 +690,7 @@ export default async function handler(req, res) {
         note:            noteMap[s.ticker]?.note ?? "",
         data_source:     `Yahoo Finance + StockEdge · ${today}`,
         data_points:     s.dataPoints,
+        groww_id:        s.groww_id,
       };
     }
  
@@ -725,7 +726,8 @@ export default async function handler(req, res) {
       note:           noteMap[s.ticker]?.note ?? "",
       data_source:    `Yahoo Finance + StockEdge · ${today}`,
       data_points:    s.dataPoints,
-      last_updated:   s.lastUpdated,
+      last_updated:   s.lastUpdated,      
+      groww_id:        s.groww_id,
     };
   });
   return res.status(200).json({
