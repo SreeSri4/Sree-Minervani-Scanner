@@ -100,7 +100,7 @@ async function fetchYahooData(symbol) {
       const res1 = await fetch(url2);
       const data1 = await res1.json();
       const groww_id = data1?.content?.[0]?.id;
-      console.log(`[GR search] ${bare} → GrowwId: ${groww_id}`)
+      console.log(`[GR search] ${symbol} → GrowwId: ${groww_id}`)
       return parseYahooResult(result, symbol,groww_id);
 
     } catch (err) {
