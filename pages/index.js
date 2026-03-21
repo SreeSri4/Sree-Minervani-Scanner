@@ -451,7 +451,7 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
             {s.stage==='Stage 2'&&<span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
             {(s.rs_rating||0)>=70&&<span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
             <span className={`${styles.tag}`}>{bandBadge}</span>
-            <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
+            <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
           </div>
           <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer" onClick={() => window.__yfWin && !window.__yfWin.closed ? (window.__yfWin.location.href = yfu, window.__yfWin.focus(), event.preventDefault()) : (window.__yfWin = window.open(yfu, 'yfChart'))}>↗ {s.yf_symbol}</a>
           {s.data_points<200&&<span className={styles.newListingBadge}>⚡ {s.data_points}d history</span>}
