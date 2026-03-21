@@ -99,7 +99,7 @@ async function fetchYahooData(symbol) {
       const url2 = `https://groww.in/v1/api/search/v3/query/global/st_query?entity_type=stocks&from=0&query=${encodeURIComponent(symbol)}&size=6&web=true`;
       const res1 = await fetch(url2);
       const data1 = await res1.json();
-      const groww_id = data1?.content?.[0]?.id;
+      const groww_id = data1?.data?.content?.[0]?.id;
       console.log(`[GR search] ${symbol} → GrowwId: ${groww_id}`)
       return parseYahooResult(result, symbol,groww_id);
 
