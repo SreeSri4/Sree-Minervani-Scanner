@@ -138,25 +138,38 @@ async function fetchFundamentals(symbol) {
     'Origin':          'https://web.stockedge.com',
     'Referer':         'https://web.stockedge.com/',
   }
- 
+
+  
+  // Retry helper for StockEdge — retries up to 2 times on failure with backoff
+  async function seRetry(fn, label) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await fn()
+        if (result !== null) return result
+      } catch (e) {
+        console.warn(`[SE] ${label} attempt ${attempt+1} failed:`, e.message)
+      }
+      if (attempt < 2) await new Promise(r => setTimeout(r, (attempt + 1) * 500))
+    }
+    return null
+  }
+  
   let docId = null
   if (bare.length < 3) {
     // Ensure shortName exists before assigning to avoid 'undefined'
     bare = shortname || bare; 
   }
   try {
+    docId = await seRetry(async () => {
     const searchUrl = `https://api.stockedge.com/Api/UniversalSearchApi/GetQuickSearchResult?searchTerm=${encodeURIComponent(bare)}&lang=en`
     const sr = await fetch(searchUrl, { headers: SE_HEADERS, cache: 'no-store' })
-    console.log(`[SE search] ${bare} → HTTP ${sr.status}`)
-    if (sr.ok) {
-      const sj = await sr.json()
-      const stock = sj?.Data?.find(d => d.EntityCode === 'se_security')
-      docId = stock?.DocId ?? null
-      console.log(`[SE search] ${bare} → DocId: ${docId}`)
-    } else {
-      const txt = await sr.text()
-      console.warn(`[SE search] ${bare} failed: ${sr.status} — ${txt.slice(0, 200)}`)
-    }
+    if (!sr.ok) { console.warn(`[SE search] ${bare} HTTP ${sr.status}`); return null }
+    const sj = await sr.json()
+    const stock = sj?.Data?.find(d => d.EntityCode === 'se_security')
+    const id = stock?.DocId ?? null
+    console.log(`[SE search] ${bare} → DocId: ${id}`)
+    return id
+    }, `search:${bare}`)
   } catch (e) {
     console.warn(`[SE search] ${bare} exception:`, e.message)
   }
@@ -165,23 +178,20 @@ async function fetchFundamentals(symbol) {
   let epsQ = [], revQ = []
   if (docId) {
     try {
+      const stmtJson = await seRetry(async () => {
       const stmtUrl = `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}/2/3?lang=en`
       const stmtRes = await fetch(stmtUrl, { headers: SE_HEADERS, cache: 'no-store' })
       console.log(`[SE stmt] ${bare} DocId=${docId} → HTTP ${stmtRes.status}`)
-      if (stmtRes.ok) {
-        const stmtJson = await stmtRes.json()
-        const display  = stmtJson?.DisplayData?.[0] ?? {}
- 
+      if (!stmtRes.ok) return null
+      return stmtRes.json()
+      }, `stmt:${bare}`)
+      if (stmtJson) { 
         const r2 = n => n != null ? Math.round(Number(n) * 100) / 100 : null
- 
         // DisplayData is a flat array, index 0 = most recent quarter
         // Each item has: DateEndName, NET_SALES, NET_SALES_Growth, Adj_eps_abs, Adj_eps_abs_Growth
-        const rows = stmtJson?.DisplayData ?? []
- 
         // Take 4 rows (most recent first), reverse to oldest→newest, then slice last 3
         // so all 3 displayed quarters have a QoQ % change value
-        const last4 = rows.slice(0, 4).reverse()  // oldest → newest
- 
+        const last4 = (stmtJson.DisplayData ?? []).slice(0, 4).reverse()  // oldest → newest
         revQ = last4.map(q => ({
           date:    q.DateEndName ?? '',
           revenue: r2(q.NET_SALES),
