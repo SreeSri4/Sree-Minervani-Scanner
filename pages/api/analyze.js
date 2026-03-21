@@ -100,6 +100,7 @@ async function fetchYahooData(symbol) {
       const res1 = await fetch(url2);
       const data1 = await res1.json();
       const groww_id = data1?.content?.[0]?.id;
+      console.log(`[GR search] ${bare} → GrowwId: ${groww_id}`)
       return parseYahooResult(result, symbol,groww_id);
 
     } catch (err) {
@@ -690,7 +691,7 @@ export default async function handler(req, res) {
         note:            noteMap[s.ticker]?.note ?? "",
         data_source:     `Yahoo Finance + StockEdge · ${today}`,
         data_points:     s.dataPoints,
-        groww_id:        s.groww_id,
+        groww_id:        s.groww_id ?? null,
       };
     }
  
@@ -727,7 +728,7 @@ export default async function handler(req, res) {
       data_source:    `Yahoo Finance + StockEdge · ${today}`,
       data_points:    s.dataPoints,
       last_updated:   s.lastUpdated,      
-      groww_id:        s.groww_id,
+      groww_id:        s.groww_id ?? null,
     };
   });
   return res.status(200).json({
