@@ -438,7 +438,9 @@ function LongCard({ stock:s, exchange, delay }) {
   const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
   const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
   const vc    = s.verdict==='BUY_READY'?'buyReady':s.verdict==='NEAR_PIVOT'?'nearPivCard':s.verdict==='EXTENDED'?'extCard':s.verdict==='WATCH'?'watchCard':'avoidCard'
- 
+  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  const bandBadge = getBandBadge(priceBands, s.ticker, styles)
+  
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
       <div className={styles.cardTop}>
@@ -447,9 +449,10 @@ function LongCard({ stock:s, exchange, delay }) {
             <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
             {s.stage==='Stage 2'&&<span className={`${styles.tag} ${styles.tagS2}`}>Stage 2</span>}
             {(s.rs_rating||0)>=70&&<span className={`${styles.tag} ${styles.tagRs}`}>RS {s.rs_rating}</span>}
+            <span className={`${styles.tag}`}>{bandBadge}</span>
+            <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
           </div>
-          <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
-          <a className={styles.tLink} href={`https://finance.yahoo.com/quote/${s.yf_symbol}/`} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer" onClick={() => window.__yfWin && !window.__yfWin.closed ? (window.__yfWin.location.href = yfu, window.__yfWin.focus(), event.preventDefault()) : (window.__yfWin = window.open(yfu, 'yfChart'))}>↗ {s.yf_symbol}</a>
           {s.data_points<200&&<span className={styles.newListingBadge}>⚡ {s.data_points}d history</span>}
         </div>
         <div className={styles.cardTopRight}>
@@ -469,13 +472,8 @@ function LongCard({ stock:s, exchange, delay }) {
         <PB label="MA 50" val={inr(s.ma50)}/><PB label="MA 150" val={inr(s.ma150)}/>
         <PB label="MA 200" val={inr(s.ma200)}/>
         <PB label="Avg Vol 20D" val={s.avg_vol20?(s.avg_vol20>=1e6?(s.avg_vol20/1e6).toFixed(1)+'M':(s.avg_vol20/1000).toFixed(0)+'K'):'—'} cls={s.avg_vol20>=100000?'pos':'neg'}/>
-        <div className={styles.priceBlock}>
-          <div className={styles.priceLabel}>ATR % · Circuit</div>
-          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-            <span className={styles.priceValue}>{s.atr_pct?s.atr_pct.toFixed(1)+'%':'—'}</span>
-            {s.circuit_band&&<span className={`${styles.circuitBadge} ${styles[circuitClass(s.circuit_band)]}`}>{circuitLabel(s.circuit_band)}</span>}
-          </div>
-        </div>
+        <div className={styles.priceBlock}><div className={styles.priceLabel}>ATR %</div><div className={styles.priceValue}>{s.atr_pct ? s.atr_pct.toFixed(1)+'%' : '—'}</div></div>
+        <div style={{marginTop:'3px'}}>{bandBadge}</div>        
       </div>
  
       <div className={`${styles.entryPanel} ${styles[zconf.panel]}`}>
@@ -525,7 +523,8 @@ function ShortCard({ stock:s, exchange, delay }) {
   const pfl   = s.low_52w  ? (((s.price-s.low_52w)/s.low_52w)*100).toFixed(1) : null
   const pfh   = s.high_52w ? (((s.price-s.high_52w)/s.high_52w)*100).toFixed(1) : null
   const vc    = s.verdict==='SHORT_NOW'?'shortNowCard':s.verdict==='NEAR_SHORT'?'nearShortCard':s.verdict==='WAIT_MA50'?'watchCard':s.verdict==='WATCH_SHORT'?'nearPivCard':'avoidCard'
- 
+  const yfu = `https://finance.yahoo.com/chart/${s.yf_symbol}/`
+  
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
       <div className={styles.cardTop}>
@@ -534,9 +533,9 @@ function ShortCard({ stock:s, exchange, delay }) {
             <span className={`${styles.tag} ${styles.tagEx}`}>{exchange}</span>
             {s.stage==='Stage 4'&&<span className={`${styles.tag} ${styles.tagStage4}`}>Stage 4</span>}
             {s.lower_highs&&<span className={`${styles.tag} ${styles.tagBear}`}>↓ Lower Highs</span>}
+            <div className={styles.tName}>{s.company}{s.sector && <span className={styles.tSector}> · {s.sector}</span>}{s.industry && s.industry !== s.sector && <span className={styles.tIndustry}> / {s.industry}</span>}</div>
           </div>
-          <div className={styles.tName}>{s.company}{s.sector&&<span className={styles.tSector}> · {s.sector}</span>}</div>
-          <a className={styles.tLink} href={`https://finance.yahoo.com/quote/${s.yf_symbol}/`} target="_blank" rel="noopener noreferrer">↗ {s.yf_symbol}</a>
+          <a className={styles.tLink} href={yfu} target="_blank" rel="noopener noreferrer" onClick={() => window.__yfWin && !window.__yfWin.closed ? (window.__yfWin.location.href = yfu, window.__yfWin.focus(), event.preventDefault()) : (window.__yfWin = window.open(yfu, 'yfChart'))}>↗ {s.yf_symbol}</a>
           {s.data_points<200&&<span className={styles.newListingBadge}>⚡ {s.data_points}d history</span>}
         </div>
         <div className={styles.cardTopRight}>
