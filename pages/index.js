@@ -443,6 +443,7 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
   
   return (
     <div className={`${styles.stockCard} ${styles[vc]}`} style={{animationDelay:`${delay}ms`}}>
+      {/* Header */}
       <div className={styles.cardTop}>
         <div className={styles.cardTopLeft}>
           <div className={styles.tSym}>{s.ticker}
@@ -461,7 +462,7 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
           <div className={styles.sepaScoreBig} style={{color:sc}}>{s.sepa_score}<span>/{maxSc}</span></div>
         </div>
       </div>
- 
+      {/* Price grid */}
       <div className={styles.priceGrid}>
         <PB label="CMP" val={inr(s.price)}/>
         <PB label="1D Change" val={pctFmt(s.change_pct)} cls={chg>=0?'pos':'neg'}/>
@@ -475,7 +476,7 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
         <div className={styles.priceBlock}><div className={styles.priceLabel}>ATR %</div><div className={styles.priceValue}>{s.atr_pct ? s.atr_pct.toFixed(1)+'%' : '—'}</div></div>
         <div style={{marginTop:'3px'}}>{bandBadge}</div>        
       </div>
- 
+      {/* Entry zone panel */}
       <div className={`${styles.entryPanel} ${styles[zconf.panel]}`}>
         <div className={styles.entryRow}>
           <EI label="Pivot (15D high)" val={inr(s.pivot)}/>
@@ -488,13 +489,61 @@ function LongCard({ stock:s, exchange, delay, priceBands }) {
         {s.entry_zone==='EXTENDED'&&<div className={styles.extendedWarn}>⚠ {(s.pivot_pct||0).toFixed(1)}% above pivot — already broke out. Do not chase. Wait for new base.</div>}
         {s.entry_zone==='IN_BUY_ZONE'&&<div className={styles.buyZoneNote}>✦ In buy zone. Enter on strong volume (≥1.5× avg). Stop at {inr(s.stop_loss)}.</div>}
       </div>
- 
+      {/* Score bar */}
       <div className={styles.scoreRow}>
         <span className={styles.scoreLbl}>SEPA</span>
         <div className={styles.scoreTrack}><div className={styles.scoreFill} style={{width:`${(ratio*100).toFixed(0)}%`,background:sc}}/></div>
         <span className={styles.scoreVal} style={{color:sc}}>{s.sepa_score}/{maxSc}</span>
       </div>
- 
+
+      {/* Fundamentals — EPS & Revenue quarters */}
+      {(s.eps_quarters?.length > 0 || s.rev_quarters?.length > 0) && (
+        <div className={styles.fundPanel}>
+          <div className={styles.fundTitle}>Quarterly Financials</div>
+          <div className={styles.fundGrid}>
+            {/* EPS */}
+            {s.eps_quarters?.length > 0 && (
+              <div className={styles.fundBlock}>
+                <div className={styles.fundLabel}>EPS</div>
+                <div className={styles.fundRow}>
+                  {s.eps_quarters.map((q, i) => (
+                    <div key={i} className={styles.fundCell}>
+                      <div className={styles.fundDate}>{q.date}</div>
+                      <div className={styles.fundVal}>{q.actual != null ? q.actual.toFixed(2) : '—'}</div>
+                      {q.chg != null && (
+                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
+                          {q.chg >= 0 ? '+' : ''}{q.chg}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Revenue */}
+            {s.rev_quarters?.length > 0 && (
+              <div className={styles.fundBlock}>
+                <div className={styles.fundLabel}>Sales</div>
+                <div className={styles.fundRow}>
+                  {s.rev_quarters.map((q, i) => (
+                    <div key={i} className={styles.fundCell}>
+                      <div className={styles.fundDate}>{q.date}</div>
+                      <div className={styles.fundVal}>{q.revenue != null ? q.revenue : '—'}</div>
+                      {q.chg != null && (
+                        <div className={`${styles.fundChg} ${q.chg >= 0 ? styles.pos : styles.neg}`}>
+                          {q.chg >= 0 ? '+' : ''}{q.chg}%
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Criteria 2-col */}  
       <div className={styles.checks}>
         {Object.entries(s.criteria||{}).map(([k,v])=>(
           <div key={k} className={`${styles.chk} ${v.na?styles.chkNa:v.pass?'':styles.chkFail}`}>
