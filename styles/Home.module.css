@@ -242,6 +242,93 @@
   .checks  { grid-template-columns:1fr; }
 }
 
+/* ── Price Band badge ────────────────────────── */
+.priceBand {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 0;
+  vertical-align: middle;
+  letter-spacing: .3px;
+}
+.bandRed    { color: #ff4444; background: rgba(255,68,68,.12);   border: 1px solid rgba(255,68,68,.3); }
+.bandOrange { color: #ff8c00; background: rgba(255,140,0,.12);   border: 1px solid rgba(255,140,0,.3); }
+.bandGreen  { color: #22c55e; background: rgba(34,197,94,.12);   border: 1px solid rgba(34,197,94,.3); }
+.bandGrey   { color: var(--text3); background: var(--bg4); border: 1px solid var(--border2); }
+
+/* ── Industry label ──────────────────────────────────────────── */
+.tIndustry { color: var(--blue); font-size: 11px; }
+
+/* ── Quarterly Fundamentals panel ───────────────────────────── */
+.fundPanel {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.fundTitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.fundGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fundBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fundLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.fundRow {
+  display: flex;
+  gap: 6px;
+}
+.fundCell {
+  flex: 1;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fundDate {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fundVal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.fundChg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
 /* ═══════════════════════════════════════════════════════
    MODE TOGGLE (Long / Short)
    ═══════════════════════════════════════════════════════ */
