@@ -186,7 +186,7 @@ async function fetchFundamentals(symbol) {
   if (docId) {
     try {
       const stmtJson = await seRetry(async () => {
-      const stmtUrl = `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}/2/3?lang=en`
+      const stmtUrl = `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}?lang=en`
       const stmtRes = await fetch(stmtUrl, { headers: SE_HEADERS, cache: 'no-store' })
       console.log(`[SE stmt] ${bare} DocId=${docId} → HTTP ${stmtRes.status}`)
       if (!stmtRes.ok) return null
