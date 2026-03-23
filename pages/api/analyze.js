@@ -182,23 +182,34 @@ async function fetchFundamentals(symbol) {
   }
  
   // ── Step 3: fetch quarterly result statement ──────────────────────────────────
-  let epsQ = [], revQ = []
+   let epsQ = [], revQ = []
   if (docId) {
     try {
-      const stmtJson = await seRetry(async () => {
-      const stmtUrl = `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}?lang=en`
-      const stmtRes = await fetch(stmtUrl, { headers: SE_HEADERS, cache: 'no-store' })
-      console.log(`[SE stmt] ${bare} DocId=${docId} → HTTP ${stmtRes.status}`)
-      if (!stmtRes.ok) return null
-      return stmtRes.json()
-      }, `stmt:${bare}`)
-      if (stmtJson) { 
+      // Try two URL variants — /2/3 is quarterly consolidated, fallback is base URL
+      const STMT_URLS = [
+        `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}/2/3?lang=en`,
+        `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}?lang=en`,
+      ]
+      let stmtJson = null
+      for (const stmtUrl of STMT_URLS) {
+        stmtJson = await seRetry(async () => {
+          const res = await fetch(stmtUrl, { headers: SE_HEADERS, cache: 'no-store' })
+          console.log(`[SE stmt] ${bare} DocId=${docId} ${stmtUrl.includes('/2/3') ? '[v1]' : '[v2]'} → HTTP ${res.status}`)
+          if (!res.ok) return null
+          const json = await res.json()
+          // Only accept if we got actual data rows
+          if (!json?.DisplayData?.length) return null
+          return json
+        }, `stmt:${bare}`)
+        if (stmtJson) { console.log(`[SE stmt] ${bare} → got data from ${stmtUrl.includes('/2/3') ? 'v1' : 'v2'}`); break }
+      }
+ 
+      if (stmtJson) {
         const r2 = n => n != null ? Math.round(Number(n) * 100) / 100 : null
-        // DisplayData is a flat array, index 0 = most recent quarter
-        // Each item has: DateEndName, NET_SALES, NET_SALES_Growth, Adj_eps_abs, Adj_eps_abs_Growth
-        // Take 4 rows (most recent first), reverse to oldest→newest, then slice last 3
-        // so all 3 displayed quarters have a QoQ % change value
-        const last4 = (stmtJson.DisplayData ?? []).slice(0, 4).reverse()  // oldest → newest
+        // DisplayData is flat array, index 0 = most recent quarter
+        // Grab 4, reverse oldest→newest, slice last 3 so all 3 have QoQ % change
+        const last4 = (stmtJson.DisplayData ?? []).slice(0, 4).reverse()
+ 
         revQ = last4.map(q => ({
           date:    q.DateEndName ?? '',
           revenue: r2(q.NET_SALES),
@@ -212,7 +223,7 @@ async function fetchFundamentals(symbol) {
         })).filter(q => q.actual !== null).slice(-3)
       }
     } catch (e) {
-      console.warn(`[fundamentals] StockEdge stmt failed for ${bare}:`, e.message)
+      console.warn(`[SE stmt] ${bare} failed:`, e.message)
     }
   }
 
