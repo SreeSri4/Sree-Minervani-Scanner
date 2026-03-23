@@ -190,6 +190,22 @@ async function fetchFundamentals(symbol) {
         `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}/2/3?lang=en`,
         `https://api.stockedge.com/Api/SecurityDashboardApi/GetResultStatementSet/${docId}?lang=en`,
       ]
+            // Check if the most recent quarter in DisplayData is within the last 18 months
+      // DateEnd format is YYYYMM (e.g. 202512), index 0 = most recent
+      function isDataFresh(json) {
+        const rows = json?.DisplayData
+        if (!rows?.length) return false
+        const dateEnd = rows[0]?.DateEnd  // e.g. 202512
+        if (!dateEnd) return false
+        const year  = Math.floor(dateEnd / 100)
+        const month = dateEnd % 100
+        const rowDate = new Date(year, month - 1, 1)
+        const cutoff  = new Date()
+        cutoff.setMonth(cutoff.getMonth() - 9)  // 18 months ago
+        const fresh = rowDate >= cutoff
+        if (!fresh) console.log(`[SE stmt] ${bare} data is stale (most recent: ${rows[0]?.DateEndName}) — trying next URL`)
+        return fresh
+      }
       let stmtJson = null
       for (const stmtUrl of STMT_URLS) {
         stmtJson = await seRetry(async () => {
@@ -201,7 +217,8 @@ async function fetchFundamentals(symbol) {
           if (!json?.DisplayData?.length) return null
           return json
         }, `stmt:${bare}`)
-        if (stmtJson) { console.log(`[SE stmt] ${bare} → got data from ${stmtUrl.includes('/2/3') ? 'v1' : 'v2'}`); break }
+        if (stmtJson && isDataFresh(stmtJson)) { console.log(`[SE stmt] ${bare} → got data from ${stmtUrl.includes('/2/3') ? 'v1' : 'v2'}`); break }
+        stmtJson = null  // reject stale data, try next URL
       }
  
       if (stmtJson) {
