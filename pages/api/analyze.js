@@ -97,10 +97,11 @@ async function fetchYahooData(symbol) {
       const result = json?.chart?.result?.[0];
       if (!result) { lastError = new Error(`Empty response from ${host}`); continue; }
       let bare = symbol.replace(/\.(NS|BO)$/i, '')
-      if (bare.length < 3) {
-        // Ensure shortName exists before assigning to avoid 'undefined'
-          bare = result.meta.shortName || bare; 
-      }
+      // if (bare.length < 3) {
+      //   // Ensure shortName exists before assigning to avoid 'undefined'
+      //     bare = result.meta.shortName || bare; 
+      // }
+      bare = result.meta.shortName || bare;
       const url2 = `https://groww.in/v1/api/search/v3/query/global/st_query?entity_type=stocks&from=0&query=${encodeURIComponent(bare)}&size=6&web=true`;
       const res1 = await fetch(url2);
       const data1 = await res1.json();
