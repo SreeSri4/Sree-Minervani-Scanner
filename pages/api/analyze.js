@@ -1,7 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 // ─── Yahoo Finance fetcher — with crumb auth + retries + fallback hosts ─────────
 
 // Step 1: get a session cookie + crumb (Yahoo requires this for chart API)
@@ -581,57 +577,6 @@ function scoreShort(d, fin) {
            shortZone, distFromMa50: distFromMa50 ? r2(distFromMa50) : null,
            shortStop, shortTarget, shortRR };
 }
-// ─── Claude: narrative notes ──────────────────────────────────────────────────
-async function generateNotes(scoredStocks, mode = "long") {
-  const input = scoredStocks.map((s) => mode === "long" ? ({
-    ticker: s.ticker, company: s.companyName,
-    price: s.currentPrice, verdict: s.verdict,
-    entryZone: s.entryZone, pivot: s.pivot,
-    stage: s.stage, sepaScore: s.sepaScore,
-    stopLoss: s.stopLoss, riskReward: s.riskReward,
-    baseTightness: s.baseTightness, atrPct: s.atrPct,
-    failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass && !v.na).map(([k]) => k),
-  }) : ({
-    ticker: s.ticker, price: s.currentPrice, verdict: s.verdict,
-    stage: s.stage, score: s.score, maxScore: s.maxScore,
-    shortZone: s.shortZone, distFromMa50: s.distFromMa50,
-    salesQoQ: s.financials?.revenueQoQ, epsQoQ: s.financials?.epsQoQ,
-    failedCriteria: Object.entries(s.criteria).filter(([,v]) => !v.pass && !v.na).map(([k]) => k),
-  }));
-
-  const prompt = mode === "long" ? 
-    `You are a Mark Minervini-style trader analyzing Indian stocks.
-
-SEPA data is pre-calculated. Write a concise 1-2 sentence trade note per stock covering:
-- For EXTENDED stocks: warn clearly they have already broken out, do not chase
-- For IN_BUY_ZONE: describe the setup quality and what confirms the entry
-- For NEAR_PIVOT: what to watch for before buying
-- For WATCH/AVOID: what's missing or wrong
-
-Return ONLY a JSON array, no markdown:
-[{"ticker":"X","note":"..."}]
-
-Stocks: ${JSON.stringify(input, null, 2)}`
-: `You are a short-selling analyst. Short scores are pre-calculated.
-Write a concise 1-2 sentence SHORT TRADE note per stock.
-- AT_RESISTANCE: ideal short entry now at MA50
-- APPROACHING: get ready, bouncing toward MA50
-- WAIT_MA50: too early, wait for rejection
-- AVOID: not a short setup
-Return ONLY a JSON array, no markdown: [{"ticker":"X","note":"..."}]
-Stocks: ${JSON.stringify(input, null, 2)}`;
-
-  const resp = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 2000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text  = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const match = text.match(/\[[\s\S]*\]/);
-  return match ? JSON.parse(match[0]) : [];
-}
-
 // ─── Route handler ────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -676,12 +621,6 @@ export default async function handler(req, res) {
     scored = goodData.map((s) => ({ ...s, ...scoreSEPA(s) }));
   }
 
-  // ── 3. Claude generates narrative notes ───────────────────────────────────────
-  let notes = [];
-  try { notes = await generateNotes(scored, mode); }
-  catch (err) { console.warn("Notes failed:", err.message); }
-  const noteMap = Object.fromEntries(notes.map((n) => [n.ticker, n]));
-
   // ── 4. Final response (shape differs by mode) ─────────────────────────────────────────────────────────
   const stocks = scored.map((s) => {
     const fund = fundMap[s.ticker] || {};
@@ -722,7 +661,7 @@ export default async function handler(req, res) {
         short_stop:      s.shortStop,
         short_target:    s.shortTarget,
         short_rr:        s.shortRR,
-        note:            noteMap[s.ticker]?.note ?? "",
+        note:            "",
         data_source:     `Yahoo Finance + StockEdge · ${today}`,
         data_points:     s.dataPoints,
         groww_id:        s.groww_id ?? null,
@@ -758,7 +697,7 @@ export default async function handler(req, res) {
       base_tightness: s.baseTightness,
       atr_pct:        s.atrPct,
       avg_vol20:      s.avgVol20,
-      note:           noteMap[s.ticker]?.note ?? "",
+      note:           "",
       data_source:    `Yahoo Finance + StockEdge · ${today}`,
       data_points:    s.dataPoints,
       last_updated:   s.lastUpdated,      
